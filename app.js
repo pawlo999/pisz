@@ -469,6 +469,7 @@ var IN = { id:null, pen:false, touchMode:false, lastDown:0, moves:0, coal:0, t0:
 var pad = $('pad');
 function down(clientX, clientY){
   layoutIfMoved();
+  if(STEP && !STEP.ready) skipDemo();
   IN.moves = 0; IN.coal = 0; IN.t0 = performance.now();
   if(STEP && STEP.down) STEP.down(toUnits(clientX, clientY));
 }
@@ -654,9 +655,21 @@ function startStep(){
      writes it from memory (then 👀 is there if she wants it)            */
   var lv = M[id] ? M[id].lv : 0;
   if(st === 'R' || (st === 'T' && first) || (st === 'C' && first && lv <= 2)){
-    demo(id, st === 'C' ? 'model' : 'pad', function(){ say(st === 'R' ? tx().turn : st === 'T' ? tx().dots : tx().copy); STEP.ready = true; });
-    if(st !== 'C') say(G[id].kind === 'shape' ? prompt(id, st) : tx().watch);
-    else say(tx().watch);
+    /* name it, let the voice finish, then draw it: the first stroke's word
+       ("w dół") used to cut the sentence off, so a new letter was never
+       introduced by name before she saw it drawn                         */
+    var me = STEP;
+    var intro = G[id].kind === 'shape' ? prompt(id, st)
+              : (first ? letterPhrase(id) + '. ' : '') + tx().watch;
+    say(intro);
+    setTimeout(function(){
+      if(STEP !== me) return;
+      demo(id, st === 'C' ? 'model' : 'pad', function(){
+        if(STEP !== me) return;
+        say(st === 'R' ? tx().turn : st === 'T' ? tx().dots : tx().copy);
+        me.ready = true;
+      });
+    }, Math.min(2600, 450 + intro.length * 60));
   } else {
     STEP.ready = true;
     say(st === 'M' ? prompt(id, 'M') : st === 'C' ? tx().copy : st === 'T' ? tx().dots : tx().turn);
@@ -924,14 +937,26 @@ function paintModel(g, upto){
 /* ---- the guide draws it: every stroke, in order, with its word ----- */
 /* every demo carries a ticket; forcing the pad writable voids it, so a
    replay that was cancelled can never finish later and wipe her ink     */
-var DEMO = 0;
-function cancelDemo(){ DEMO++; FX = null; clear('fx'); }
+var DEMO = 0, DEMO_ON = null;
+function cancelDemo(){ DEMO++; DEMO_ON = null; FX = null; clear('fx'); }
+/* she touches the pad while the guide is still drawing: after the first
+   moment, that means "I've got it" — finish the demo now, the same way
+   it would have finished, and let the touch start her stroke           */
+function skipDemo(){
+  if(!DEMO_ON || performance.now() - DEMO_ON.t0 < 1500) return false;
+  var d = DEMO_ON;
+  cancelDemo();
+  if(d.where === 'model' && STEP && STEP.g) paintModel(STEP.g);
+  d.done && d.done();
+  return true;
+}
 function demo(id, where, done){
   var g = G[id], i = 0, ticket = ++DEMO;
+  DEMO_ON = { t0:performance.now(), where:where, done:done };
   if(where === 'pad') clear('fx');
   (function next(){
     if(ticket !== DEMO) return;
-    if(!STEP || i >= g.strokes.length){ if(where === 'pad') setTimeout(function(){ clear('fx'); }, 250); else if(STEP) paintModel(g); done && done(); return; }
+    if(!STEP || i >= g.strokes.length){ DEMO_ON = null; if(where === 'pad') setTimeout(function(){ clear('fx'); }, 250); else if(STEP) paintModel(g); done && done(); return; }
     demoStroke(g, i, where, function(){ i++; setTimeout(next, 260); }, true);
   })();
 }

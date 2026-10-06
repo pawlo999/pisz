@@ -36,7 +36,7 @@ const state = page => page.evaluate(() => {
   return { screen: a.current(), st: a.STEP && a.STEP.st, ready: !!(a.STEP && a.STEP.ready), g: a.STEP && a.STEP.g && a.STEP.g.id,
            item: a.RUN && a.RUN.item.g, rows: a.LOG.length, items: a.SES && a.SES.items.map(i => i.g + ':' + i.steps.join('')) };
 });
-const ready = (page, st, ms = 9000) => until(page, s => { const a = window.__pisz; return a.STEP && a.STEP.ready && (!s || a.STEP.st === s); }, st, ms, 'step ' + st);
+const ready = (page, st, ms = 15000) => until(page, s => { const a = window.__pisz; return a.STEP && a.STEP.ready && (!s || a.STEP.st === s); }, st, ms, 'step ' + st);
 async function enter(page) {
   await page.click('#avatar'); await sleep(2100);
   await page.click('.flag[data-lang="pl"]'); await sleep(300);
@@ -110,6 +110,8 @@ async function suite(engine) {
     await ready(page, 'T'); await draw(page, templateStrokes(P, 'D'));
     await ready(page, 'C');
     ok(await page.isVisible('#model'), 'when copying, the model is shown beside the pad');
+    const intro = (await said()).indexOf('d jak dom. patrz!'), cue = (await said()).indexOf('w dół');
+    ok(intro >= 0 && cue > intro, 'a new letter is named ("d jak dom. patrz!") before the guide draws it', JSON.stringify((await said()).slice(0, 8)));
     await draw(page, scribble(4, 9).map(s => s.map(p => ({ x: p.x * 0.6, y: p.y }))));
     await sleep(1200);
     await ready(page, 'C', 15000);
@@ -345,6 +347,19 @@ async function suite(engine) {
   }
 
   if (engine === 'chromium') {
+    console.log('\nthe parent panel scrolls under a real finger');
+    {
+      const { page } = await open(b, { seed: { name: 'ADA', lang: 'pl' }, viewport: { width: 820, height: 700 } });
+      await page.dispatchEvent('#gear', 'mousedown'); await sleep(1350); await page.dispatchEvent('#gear', 'mouseup');
+      const cdp = await page.context().newCDPSession(page);
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 410, y: 600 }] });
+      for (let y = 590; y >= 200; y -= 15) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 410, y }] });
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+      await sleep(400);
+      const top = await page.evaluate(() => document.getElementById('parent').scrollTop);
+      ok(top > 100, 'dragging up scrolls the settings (the child screens never scroll)', 'scrollTop ' + top);
+      await page.context().close();
+    }
     console.log('\nreal touches from the browser (not events made by the page)');
     const { page, errors } = await open(b, { seed: { name: 'ADA', lang: 'pl' } });
     await enter(page);
@@ -430,6 +445,22 @@ async function suite(engine) {
     await draw(page, templateStrokes(P, '|'));
     await ready(page, 'T');
     ok(true, 'and it can be started again');
+    ok(!errors.length, 'no errors', errors.join(' | '));
+    await page.context().close();
+  }
+
+  /* ---------------------------------------------------------------- */
+  console.log('\nshe does not have to wait for the guide');
+  {
+    const { page, errors } = await open(b, { seed: { name: 'ADA', lang: 'pl' }, log: seedLog(SHAPES2) });
+    await enter(page);
+    await runItemOf(page, 'D');
+    await sleep(1500 + 450 + 17 * 60 + 300);           // the intro, then a moment of the demo
+    const before = await page.evaluate(() => window.__pisz.STEP.ready);
+    await draw(page, templateStrokes(P, 'D'));
+    await until(page, () => window.__pisz.STEP && window.__pisz.STEP.st === 'T', null, 4000, 'dots step').catch(() => {});
+    const st = await state(page);
+    ok(before === false && st.st === 'T', 'touching the pad during the demo skips it, and that stroke counts', JSON.stringify({ before, st: st.st }));
     ok(!errors.length, 'no errors', errors.join(' | '));
     await page.context().close();
   }

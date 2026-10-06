@@ -646,6 +646,7 @@ function startStep(){
   STEP.t0 = Date.now();
   STEP.relayout();
   $('clear').classList.toggle('hide', st === 'R' || st === 'T');
+  armWatchdog(STEP);
   /* show before doing: the guide draws it first, unless she already
      writes it from memory (then 👀 is there if she wants it)            */
   var lv = M[id] ? M[id].lv : 0;
@@ -660,7 +661,9 @@ function startStep(){
 }
 
 function stepDone(ok, extra){
-  var st = STEP.st, id = RUN.item.g;
+  /* the glyph on the pad, not the item: in her name the item is "ADA"
+     and each row must be the letter she just wrote                     */
+  var st = STEP.st, id = STEP.g ? STEP.g.id : RUN.item.g;
   var row = { g:id, st:st, ok:ok ? 1 : 0, ms:Date.now() - STEP.t0 };
   if(extra) for(var k in extra) row[k] = extra[k];
   /* help during a memory step makes it a copy — that is what it was */
@@ -915,10 +918,15 @@ function paintModel(g, upto){
 }
 
 /* ---- the guide draws it: every stroke, in order, with its word ----- */
+/* every demo carries a ticket; forcing the pad writable voids it, so a
+   replay that was cancelled can never finish later and wipe her ink     */
+var DEMO = 0;
+function cancelDemo(){ DEMO++; FX = null; clear('fx'); }
 function demo(id, where, done){
-  var g = G[id], i = 0;
+  var g = G[id], i = 0, ticket = ++DEMO;
   if(where === 'pad') clear('fx');
   (function next(){
+    if(ticket !== DEMO) return;
     if(!STEP || i >= g.strokes.length){ if(where === 'pad') setTimeout(function(){ clear('fx'); }, 250); else if(STEP) paintModel(g); done && done(); return; }
     demoStroke(g, i, where, function(){ i++; setTimeout(next, 260); }, true);
   })();
@@ -933,7 +941,9 @@ function demoStroke(g, i, where, done, keep){
   if(where === 'model') paintModel(g, { i:i, n:0 });
   (function frame(now){
     if(!anim.alive || FX !== anim) return;
-    var f = Math.min(1, (now - t0) / dur), n = Math.round(f * (st.pts.length - 1));
+    /* a frame's timestamp is when the frame began, which can be before t0:
+       unclamped, the first frame indexed pts[-1] and the demo died there */
+    var f = Math.max(0, Math.min(1, (now - t0) / dur)), n = Math.round(f * (st.pts.length - 1));
     if(where === 'pad'){
       if(keep) redrawDemoTrail(g, i - 1); else clear('fx');
       var c = cx.fx;
@@ -970,7 +980,7 @@ function pulseStart(g, i){
   var t0 = performance.now(), anim = { alive:true }; FX = anim;
   (function frame(now){
     if(FX !== anim) return;
-    var f = (now - t0) / 900;
+    var f = Math.max(0, (now - t0) / 900);
     clear('fx');
     if(f < 1){ startDot(cx.fx, g.strokes[i], i + 1, 1 + 0.5 * Math.sin(f * Math.PI * 3)); requestAnimationFrame(frame); }
   })(t0);
@@ -1120,6 +1130,34 @@ document.addEventListener('visibilitychange', function(){
   else if(current() === 'write') requestWake();
 });
 window.addEventListener('resize', function(){ if(current() === 'write' && STEP && STEP.relayout){ lastRect = ''; setTimeout(layoutIfMoved, 60); } });
+
+/* ============ never stuck ========================================== */
+/* Whatever goes wrong, she must not be left looking at a pad that will
+   not take ink: a demo that died once did exactly that. The pad becomes
+   writable after 9 s whatever happens, and any error is written into the
+   log, where it syncs to the parent report.                             */
+/* counts how long the pad has refused ink without a break. the longest
+   honest wait — a miss, then the guide redrawing Æ — is about 8 s       */
+var STUCK = { step:null, since:0 };
+function armWatchdog(step){ STUCK.step = step; STUCK.since = 0; }
+setInterval(function(){
+  var st = STEP;
+  if(!st || st.ready || current() !== 'write'){ STUCK.since = 0; return; }
+  if(STUCK.step !== st){ STUCK.step = st; STUCK.since = 0; }
+  if(!STUCK.since){ STUCK.since = Date.now(); return; }
+  if(Date.now() - STUCK.since >= 12000){ cancelDemo(); st.ready = true; STUCK.since = 0; }
+}, 500);
+var errorsToday = 0;
+function noteError(msg){
+  try{
+    if(!S.practice && errorsToday++ < 20){
+      LOG.push({ t:Date.now(), k:'E', x:String(msg).slice(0, 300), b:BUILD }); saveLog();
+    }
+  }catch(e){}
+  if(STEP && !STEP.ready){ var st = STEP; setTimeout(function(){ if(STEP === st && !st.ready){ cancelDemo(); st.ready = true; } }, 400); }
+}
+window.addEventListener('error', function(e){ noteError((e.message || 'error') + ' @' + (e.lineno || '?') + ':' + (e.colno || '?')); });
+window.addEventListener('unhandledrejection', function(e){ noteError('promise: ' + (e.reason && e.reason.message || e.reason)); });
 
 /* ============ start-up ============================================= */
 load();

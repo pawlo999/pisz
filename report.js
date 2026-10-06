@@ -183,6 +183,15 @@ function render(host, log, opt){
     try{ pre.textContent = JSON.stringify(JSON.parse(dev.x), null, 1); }catch(e){ pre.textContent = String(dev.x); }
     wrap.appendChild(pre);
   }
+  /* ---- anything that went wrong on the device ---- */
+  var errs = log.filter(function(r){ return r.k === 'E'; });
+  if(errs.length){
+    wrap.appendChild(el('h4', null, 'App errors on the device (' + errs.length + ')'));
+    wrap.appendChild(el('div', 'note', 'Not her doing — the app recovered by itself. Worth passing on so it can be fixed.'));
+    errs.slice(-5).reverse().forEach(function(r){
+      wrap.appendChild(el('div', 'note', fmtDay(P.dayKey(r.t)) + ' · build ' + (r.b || '?') + ' · ' + r.x));
+    });
+  }
   wrap.appendChild(el('div', 'note', log.length + ' rows in the record.'));
 }
 

@@ -763,7 +763,9 @@ P.dayKey = dayKey;
 
 P.rebuild = function(log){
   var M = {};
-  log.filter(function(r){ return r && r.g && r.st; })
+  /* only glyphs this build knows: a row from a newer build, or a bad one,
+     must not become a "letter" nothing can draw                          */
+  log.filter(function(r){ return r && r.g && r.st && G[r.g]; })
      .slice().sort(function(a, b){ return a.t - b.t; })
      .forEach(function(r){
        var m = M[r.g] || (M[r.g] = { lv:0, n:0, ok:0, last:0, memDays:{}, fails:0,

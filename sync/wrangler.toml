@@ -1,0 +1,9 @@
+name = "pisz-sync"
+main = "src/worker.js"
+compatibility_date = "2026-01-01"
+
+# Litery's KV namespace. This worker only ever reads and writes keys that
+# start with "pisz:", so the letters game's records cannot be touched.
+[[kv_namespaces]]
+binding = "STORE"
+id = "29217cc63db4433699cf70d2f543ebc3"

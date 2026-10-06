@@ -18,18 +18,22 @@ var WORD = {
        K:['kot','🐱'], L:['lody','🍦'], M:['mama','👩'], N:['nos','👃'], O:['oko','👁️'],
        P:['pies','🐶'], R:['ryba','🐟'], S:['słoń','🐘'], T:['tort','🎂'], U:['ucho','👂'],
        W:['woda','💧'], Y:['motyl','🦋'], Z:['zebra','🦓'],
-       'Ą':['wąż','🐍'], 'Ć':['pięć','🖐️'], 'Ę':['ręka','✋'], 'Ł':['łódka','⛵'], 'Ń':['koń','🐴'],
-       'Ó':['ósemka','8️⃣'], 'Ś':['ślimak','🐌'], 'Ź':['buźka','😊'], 'Ż':['żaba','🐸'] },
+       /* ćma: there is no moth emoji, the butterfly stands in for it */
+       'Ą':['wąż','🐍'], 'Ć':['ćma','🦋'], 'Ę':['ręka','✋'], 'Ł':['łódka','⛵'], 'Ń':['koń','🐴'],
+       'Ó':['ósemka','8️⃣'], 'Ś':['ślimak','🐌'], 'Ź':['źrebak','🐎'], 'Ż':['żaba','🐸'] },
   nb:{ A:['and','🦆'], B:['ball','⚽'], C:['cowboy','🤠'], D:['dør','🚪'], E:['egg','🥚'],
        F:['fisk','🐟'], G:['gutt','👦'], H:['hus','🏠'], I:['is','🍦'], J:['jordbær','🍓'],
        K:['katt','🐱'], L:['lys','💡'], M:['mus','🐭'], N:['nese','👃'], O:['ost','🧀'],
        P:['penn','🖊️'], R:['rev','🦊'], S:['sol','☀️'], T:['tog','🚆'], U:['ugle','🦉'],
        V:['vann','💧'], W:['wienerpølse','🌭'], Y:['sykkel','🚲'], Z:['zebra','🦓'],
-       'Æ':['bær','🫐'], 'Ø':['øre','👂'], 'Å':['åtte','8️⃣'] }
+       /* ærlig (honest) has no picture of its own; the halo face stands in */
+       'Æ':['ærlig','😇'], 'Ø':['øre','👂'], 'Å':['åtte','8️⃣'] }
 };
 /* letters the voice is not trusted to say on their own (Litery: iOS is
    silent or wrong on some) — these are only ever heard inside their word */
-var WORD_ONLY = { pl:'ĄĆĘŃÓŹY', nb:'ÆØÅY' };
+var WORD_ONLY = { pl:'ĄĘŃÓ', nb:'ØÅY' };
+/* letters whose word does not start with them, said his way (6 Oct) */
+var PHRASE = { pl:{ Y:'y jak w motylu' }, nb:{} };
 var NUM = {
   pl:['zero','jeden','dwa','trzy','cztery','pięć','sześć','siedem','osiem','dziewięć'],
   nb:['null','en','to','tre','fire','fem','seks','sju','åtte','ni']
@@ -326,6 +330,7 @@ function letterPhrase(id){
   var g = G[id], w = wordOf(id)[0];
   if(g.kind === 'digit') return w;
   if(g.kind === 'shape') return w;
+  if(PHRASE[S.lang][id]) return PHRASE[S.lang][id];
   if(wordOnly(id)) return w;
   return id.toLowerCase() + LINK[S.lang] + w;
 }
@@ -1371,6 +1376,7 @@ if(/[?&]dev=probe\b/.test(location.search)){
   window.__pisz = { S:S, get LOG(){ return LOG; }, get M(){ return M; }, get STEP(){ return STEP; },
                     get RUN(){ return RUN; }, get SES(){ return SES; }, L:L, P:P, current:current,
                     toClient:function(x, y){ return { x:L.left + X(x), y:L.top + Y(y) }; },
-                    startSession:startSession, runItem:runItem, layout:layout, IN:IN, save:save };
+                    startSession:startSession, runItem:runItem, layout:layout, IN:IN, save:save,
+                    letterPhrase:letterPhrase, prompt:prompt };
 }
 })();

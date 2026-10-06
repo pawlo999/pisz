@@ -140,9 +140,11 @@ copy/merge data, change name.
 
 - Does the drawing feel immediate with a finger? (event rate shows in the
   device check)
-- Do pl-PL and nb-NO say "narysuj gąsienicę", "ń" inside words, "kreseczka"
-  well? Are the word pictures ones she recognises (E jak ekran, Ć jak pięć,
-  Ź jak buźka, C som i cowboy)?
+- Do pl-PL and nb-NO say "narysuj gąsienicę", "ć jak ćma", "ź jak źrebak",
+  "y jak w motylu", "æ som i ærlig" well? (His words, 6 Oct; ć ź y æ are now
+  spoken as letters inside the phrase, which Litery never tried.) Are the
+  pictures ones she recognises — E jak ekran 🖥️, C som i cowboy 🤠, and the
+  stand-ins 🦋 for ćma and 😇 for ærlig?
 - Are the tolerances right for her hand? — read from her first week.
 - Does Guided Access hold her in a home-screen web app? (Settings ›
   Accessibility › Guided Access, triple-click the top button.)

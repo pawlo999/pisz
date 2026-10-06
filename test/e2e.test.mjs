@@ -49,7 +49,7 @@ async function runItemOf(page, g) {
 const rowsOf = (page, g) => page.evaluate(g => window.__pisz.LOG.filter(r => r.g === g).map(r => ({ st: r.st, ok: r.ok, e: r.e || '', h: r.h || 0, s: !!r.s })), g);
 function speechOk(said) {
   const bare = said.filter(s => s.trim().length <= 1);
-  const unsafe = said.filter(s => /^(ą|ć|ę|ń|ó|ź|y|æ|ø|å) /.test(s));
+  const unsafe = said.filter(s => /^(ą|ę|ń|ó|ø|å) /.test(s));
   const upper = said.filter(s => s !== s.toLowerCase());
   return { good: !bare.length && !unsafe.length && !upper.length, why: JSON.stringify({ bare, unsafe, upper }) };
 }
@@ -90,6 +90,11 @@ async function suite(engine) {
     const sp = speechOk(await said());
     ok(sp.good, 'the voice never got a bare letter, an unsafe letter or a capital', sp.why);
     ok((await said()).includes('narysuj gąsienicę'), 'Polish instructions are grammatical ("narysuj gąsienicę")');
+    const words = await page.evaluate(() => { const a = window.__pisz; return [a.letterPhrase('Ć'), a.letterPhrase('Ź'), a.letterPhrase('Y'), a.prompt('Y', 'M'), a.prompt('Ń', 'M')]; });
+    ok(words.join('|') === 'ć jak ćma|ź jak źrebak|y jak w motylu|Napisz y jak w motylu|Napisz literkę, której brakuje: koń',
+       'his words: ć jak ćma, ź jak źrebak, y jak w motylu', words.join('|'));
+    const nb = await page.evaluate(() => { const a = window.__pisz; a.S.lang = 'nb'; const r = [a.letterPhrase('Æ'), a.prompt('Æ', 'M')]; a.S.lang = 'pl'; return r; });
+    ok(nb.join('|') === 'æ som i ærlig|Skriv æ som i ærlig', 'and æ som i ærlig', nb.join('|'));
     ok(!errors.length, 'no errors', errors.join(' | '));
 
     await page.reload(); await sleep(400);

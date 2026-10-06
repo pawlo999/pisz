@@ -843,7 +843,9 @@ P.session = function(M, opt){
 
   function lv(id){ return M[id] ? M[id].lv : 0; }
   function add(id, why){
-    if(items.some(function(it){ return it.g === id; })) return false;
+    /* the letter I and the line │ look the same to her: never both in one
+       sitting, or two bubbles on the path are identical                 */
+    if(items.some(function(it){ return it.g === id || twins(it.g, id); })) return false;
     items.push({ g:id, why:why, steps:P.plan(M[id], { shape:G[id].kind === 'shape' }) });
     return true;
   }

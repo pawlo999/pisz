@@ -246,6 +246,7 @@ for (const lang of ['pl', 'nb']) {
       const items = P.session(M, { lang, name, size: 5, now: t });
       const gs = items.map(i => i.g);
       if (new Set(gs).size !== gs.length) violations.push('duplicate item ' + gs);
+      if (P.SAME.some(g => g.filter(x => gs.includes(x)).length > 1)) violations.push('look-alikes together ' + gs);
       if (items.length > 6) violations.push('too many items ' + items.length);
       const fresh = items.filter(i => !M[i.g] && P.G[i.g] && P.G[i.g].kind !== 'shape');
       newPerSitting.push(fresh.length);

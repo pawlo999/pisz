@@ -1,0 +1,31 @@
+<!DOCTYPE html><meta charset="utf-8"><body style="margin:0;background:#fff">
+<canvas id="c"></canvas>
+<script src="../engine.js"></script>
+<script>
+var ids = Object.keys(Pisz.G), cols = 10, cell = 150, rows = Math.ceil(ids.length/cols);
+var c = document.getElementById('c'); c.width = cols*cell; c.height = rows*cell;
+var x = c.getContext('2d'); x.font = '14px sans-serif';
+var col = ['#e11d48','#2563eb','#16a34a','#d97706','#7c3aed','#0891b2'];
+ids.forEach(function(id, n){
+  var g = Pisz.G[id], ox = (n%cols)*cell, oy = Math.floor(n/cols)*cell;
+  x.strokeStyle = '#ddd'; x.strokeRect(ox+0.5, oy+0.5, cell-1, cell-1);
+  var s = 0.8, tx = ox + 20 + (100 - g.box.w)*s/2 - g.box.x0*s, ty = oy + 34;
+  x.fillStyle = '#000'; x.fillText(id, ox+4, oy+14);
+  x.strokeStyle = '#eee'; x.beginPath(); x.moveTo(ox, ty); x.lineTo(ox+cell, ty); x.moveTo(ox, ty+100*s); x.lineTo(ox+cell, ty+100*s); x.stroke();
+  g.strokes.forEach(function(st, i){
+    x.strokeStyle = col[i%col.length]; x.lineWidth = 3; x.beginPath();
+    st.pts.forEach(function(p, k){ var X = tx + p.x*s, Y = ty + p.y*s; k ? x.lineTo(X, Y) : x.moveTo(X, Y); });
+    x.stroke();
+    var p0 = st.pts[0]; x.fillStyle = col[i%col.length];
+    x.beginPath(); x.arc(tx+p0.x*s, ty+p0.y*s, 5, 0, 7); x.fill();
+    x.fillText(String(i+1), tx+p0.x*s+6, ty+p0.y*s-4);
+    if(st.pts.length > 8){ // arrow at 60%
+      var k = Math.floor(st.pts.length*0.6), a = st.pts[k-3], b = st.pts[k];
+      var ang = Math.atan2(b.y-a.y, b.x-a.x), X = tx+b.x*s, Y = ty+b.y*s;
+      x.beginPath(); x.moveTo(X, Y); x.lineTo(X-9*Math.cos(ang-0.5), Y-9*Math.sin(ang-0.5));
+      x.moveTo(X, Y); x.lineTo(X-9*Math.cos(ang+0.5), Y-9*Math.sin(ang+0.5)); x.stroke();
+    }
+  });
+});
+document.title = 'done';
+</script>

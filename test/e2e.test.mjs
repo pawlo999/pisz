@@ -74,7 +74,7 @@ async function suite(engine) {
   /* ---------------------------------------------------------------- */
   console.log('\na whole first sitting');
   {
-    const { page, errors, said } = await open(b, { seed: { name: 'ADA', lang: 'pl' } });
+    const { page, errors, said, speech } = await open(b, { seed: { name: 'ADA', lang: 'pl' } });
     await enter(page);
     const items = (await state(page)).items;
     ok(items.join(' ') === '|:RT -:RT o:RT', 'the first sitting is the three opening strokes, road then dots', items.join(' '));
@@ -95,6 +95,8 @@ async function suite(engine) {
        'his words: ć jak ćma, ź jak źrebak, y jak w motylu', words.join('|'));
     const nb = await page.evaluate(() => { const a = window.__pisz; a.S.lang = 'nb'; const r = [a.letterPhrase('Æ'), a.prompt('Æ', 'M')]; a.S.lang = 'pl'; return r; });
     ok(nb.join('|') === 'æ som i ærlig|Skriv æ som i ærlig', 'and æ som i ærlig', nb.join('|'));
+    const sp1 = await speech();
+    ok(!sp1.cuts.length && !sp1.dropped.length, 'a whole first sitting: no sentence cut off', JSON.stringify(sp1));
     ok(!errors.length, 'no errors', errors.join(' | '));
 
     await page.reload(); await sleep(400);
@@ -106,7 +108,7 @@ async function suite(engine) {
   /* ---------------------------------------------------------------- */
   console.log('\na new letter: watch, road, dots, copy — and a miss on the way');
   {
-    const { page, errors, said } = await open(b, { seed: { name: 'ADA', lang: 'pl' }, log: seedLog(SHAPES2) });
+    const { page, errors, said, speech } = await open(b, { seed: { name: 'ADA', lang: 'pl' }, log: seedLog(SHAPES2) });
     await enter(page);
     const items = (await state(page)).items;
     ok(items.some(s => s === 'D:RTC'), 'her name\'s letter D comes first among the new ones, as road → dots → copy', items.join(' '));
@@ -127,6 +129,9 @@ async function suite(engine) {
     ok(r.map(x => x.st + x.ok).join(' ') === 'R1 T1 C0 C1', 'logged: road, dots, a missed copy, a copy', JSON.stringify(r));
     ok(r[3].h === 1 && r[3].s && r[2].s, 'the copy after help is marked as helped; both drawings are kept');
     ok(await page.evaluate(() => window.__pisz.M.D.lv) === 3, 'D is now at "copied"');
+    const sp = await speech();
+    ok(!sp.cuts.length && !sp.dropped.length, 'nothing the app said was cut off or dropped — the voice finishes before the game moves on',
+       JSON.stringify(sp));
     ok(!errors.length, 'no errors', errors.join(' | '));
     await page.context().close();
   }

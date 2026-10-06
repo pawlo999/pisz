@@ -98,6 +98,8 @@
   .stage{flex:1;width:100%;display:flex;min-height:0;position:relative;
          padding:6px 14px calc(14px + env(safe-area-inset-bottom,0px));gap:14px;}
   .stage.portrait{flex-direction:column;}
+  /* left-handed: the model goes right, where her writing hand is not */
+  .stage.lefty:not(.portrait){flex-direction:row-reverse;}
   .model{flex:none;background:rgba(255,255,255,.55);border-radius:28px;display:none;
          align-items:center;justify-content:center;position:relative;}
   .model.on{display:flex;}
@@ -189,6 +191,12 @@
         background:#0b0d12;color:#7f8899;border:1px solid #262b38;border-radius:8px;
         -webkit-user-select:text;user-select:text;}
   .rep{width:100%;max-width:640px;text-align:left;font-size:14px;}
+  /* a phone is the fallback, not the target: keep the top bar on one line */
+  @media (max-width:520px){
+    .dot{width:10px;height:10px;} .dots{gap:4px;}
+    .word{font-size:20px;padding:4px 12px 4px 8px;} .word .e{font-size:28px;}
+    .tool{width:60px;height:60px;font-size:28px;}
+  }
 </style>
 </head>
 <body>
@@ -300,6 +308,11 @@
     <label>What she writes</label>
     <button class="pbtn" data-digits="0">Letters</button>
     <button class="pbtn" data-digits="1">Letters + numbers</button>
+  </div>
+  <div class="prow">
+    <label>She writes with her</label>
+    <button class="pbtn" data-hand="0">Right hand</button>
+    <button class="pbtn" data-hand="1">Left hand</button>
   </div>
   <div class="prow">
     <label>Speech speed — <b id="ratev">0.70</b>×</label>

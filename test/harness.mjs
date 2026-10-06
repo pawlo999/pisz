@@ -16,7 +16,9 @@ export async function launch(engine = 'webkit') {
  * returns { page, errors, said(), ctx }
  */
 export async function open(browser, opts = {}) {
-  const ctx = await browser.newContext({ viewport: opts.viewport || IPAD, hasTouch: true, deviceScaleFactor: 2 });
+  // service workers off: once one controls the page, the fake sync server
+  // routed below no longer sees its requests (WebKit). Offline has its own test.
+  const ctx = await browser.newContext({ viewport: opts.viewport || IPAD, hasTouch: true, deviceScaleFactor: 2, serviceWorkers: 'block' });
   const page = await ctx.newPage();
   const errors = [];
   page.on('pageerror', e => errors.push('pageerror: ' + e.message));

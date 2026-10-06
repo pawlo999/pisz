@@ -26,6 +26,10 @@ var CSS = '\
 .pr .kpi div{background:#1d2130;border-radius:12px;padding:10px 14px;min-width:120px}\
 .pr .kpi b{display:block;font-size:22px}\
 .pr .warn{background:#7a2e39;color:#fff;border-radius:10px;padding:10px 12px;margin:8px 0}\
+.pr .tiles{display:flex;flex-wrap:wrap;gap:5px;margin:6px 0 4px}\
+.pr .tiles .g{width:30px;height:30px;font-size:15px;border-radius:8px}\
+.pr .legend{display:flex;flex-wrap:wrap;gap:10px;font-size:12px;color:#9aa3b2;margin:6px 0 4px}\
+.pr .legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:4px;vertical-align:-1px}\
 ';
 var LEVEL = ['new', 'traced the road', 'traced the dots', 'copied', 'from memory', 'owned'];
 var LEVELCOL = ['#4b5263', '#ef4444', '#f97316', '#eab308', '#84cc16', '#22c55e'];
@@ -115,15 +119,30 @@ function render(host, log, opt){
     wrap.appendChild(el('div', 'note', 'Minutes count time spent on the writing steps only.'));
   }
 
-  /* ---- every glyph ---- */
-  wrap.appendChild(el('h4', null, 'Shapes and letters'));
+  /* ---- every glyph at a glance ---- */
+  var every = P.allFor(opt.lang || 'pl', opt.digits);
+  wrap.appendChild(el('h4', null, 'Everything, at a glance'));
+  var tiles = el('div', 'tiles'); wrap.appendChild(tiles);
+  function tile(id){
+    var m = M[id], g = el('span', 'g', P.G[id].kind === 'shape' ? label(id).charAt(0) : id);
+    g.style.background = LEVELCOL[m ? m.lv : 0]; if(!m) g.style.color = '#9aa3b2';
+    g.title = label(id) + ': ' + (m ? LEVEL[m.lv] : 'not yet');
+    return g;
+  }
+  every.forEach(function(id){ tiles.appendChild(tile(id)); });
+  var lg = el('div', 'legend'); wrap.appendChild(lg);
+  LEVEL.forEach(function(name, i){ var s2 = el('span'); var sw = el('i'); sw.style.background = LEVELCOL[i]; s2.appendChild(sw); s2.appendChild(document.createTextNode(i ? name : 'not yet')); lg.appendChild(s2); });
   wrap.appendChild(el('div', 'note',
     'Levels: traced the road → traced the dots → copied → wrote from memory → from memory on two different days (owned). ' +
     'Mirrored letters are normal at this age and do not count against her.'));
+
+  /* ---- what she has started ---- */
+  var started = every.filter(function(id){ return M[id]; });
+  wrap.appendChild(el('h4', null, 'What she has started (' + started.length + ')'));
   var t2 = el('table');
   var h2 = el('tr'); ['', 'level', 'tries', 'right', 'last', 'keeps happening'].forEach(function(h, i){ h2.appendChild(el('th', i === 2 || i === 3 ? 'r' : '', h)); });
   t2.appendChild(h2);
-  P.allFor(opt.lang || 'pl', opt.digits).forEach(function(id){
+  started.forEach(function(id){
     var m = M[id], tr = el('tr');
     var g = el('span', 'g', id.length === 1 && P.G[id].kind !== 'shape' ? id : label(id).charAt(0));
     g.style.background = LEVELCOL[m ? m.lv : 0]; if(!m) g.style.color = '#9aa3b2';

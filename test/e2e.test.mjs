@@ -3,7 +3,7 @@
 // Needs the app served: python3 serve.py 8791 (PISZ_URL overrides).
 import { createRequire } from 'module';
 import { childify, scribble } from './childify.mjs';
-import { launch, open, draw, sleep, until, templateStrokes, IPAD, IPAD_LAND } from './harness.mjs';
+import { launch, open, draw, sleep, until, templateStrokes, IPAD, IPAD_LAND, BASE as BASE_URL } from './harness.mjs';
 import { playSitting } from './play.mjs';
 import worker from '../sync/src/worker.js';
 import { fakeKV } from './fakekv.mjs';
@@ -432,6 +432,91 @@ async function suite(engine) {
     ok(true, 'and it can be started again');
     ok(!errors.length, 'no errors', errors.join(' | '));
     await page.context().close();
+  }
+
+  /* ---------------------------------------------------------------- */
+  console.log('\nher book');
+  {
+    const log = seedLog([...SHAPES2, ['L', 4]], 3);
+    log.push({ t: Date.now() - 2 * DAY, l: 'pl', g: 'L', st: 'C', ok: 1, s: P.pack(childify(P.G.L, { seed: 1, noise: 'heavy' })) });
+    log.push({ t: Date.now() - DAY, l: 'pl', g: 'L', st: 'M', ok: 1, s: P.pack(childify(P.G.L, { seed: 2 })) });
+    const { page, errors, said } = await open(b, { seed: { name: 'ADA', lang: 'pl' }, log });
+    await enter(page);
+    await page.click('#tobook'); await sleep(300);
+    const n = await page.evaluate(() => document.querySelectorAll('#cards .card').length);
+    ok(n === P.allFor('pl').length, `every shape and letter has a page (${n})`);
+    ok(await page.evaluate(() => document.querySelectorAll('#cards .card.none').length) === n - 1, 'only L has her ink; the rest are faint');
+    await page.evaluate(() => [...document.querySelectorAll('#cards .card')].find(c => !c.classList.contains('none') && c.querySelectorAll('.lv i.on').length === 5).click());
+    await sleep(300);
+    ok(await page.isVisible('#detail') && await page.evaluate(() => document.querySelectorAll('#detailrow canvas').length) === 2, 'L opens her first and her latest L side by side');
+    ok((await said()).includes('l jak lody'), 'and says "l jak lody"');
+    await page.click('#detail'); await sleep(100);
+    await page.click('#bookback'); await sleep(200);
+    ok((await state(page)).screen === 'path', 'back to today\'s path');
+    ok(!errors.length, 'no errors', errors.join(' | '));
+    await page.context().close();
+  }
+
+  /* ---------------------------------------------------------------- */
+  console.log('\nthe parent page on his phone');
+  {
+    const env = { STORE: fakeKV() };
+    const KEY = 'family-key-0123456789';
+    const log = seedLog([...SHAPES2, ['L', 5], ['T', 3]], 4);
+    log.push({ t: Date.now() - DAY, l: 'pl', g: 'L', st: 'M', ok: 1, s: P.pack(childify(P.G.L, { seed: 2 })) });
+    await worker.fetch(new Request(SYNC + '/s/' + KEY, { method: 'POST', body: JSON.stringify({ log, name: 'ADA', settings: { size: 5 } }) }), env);
+    const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
+    const page = await ctx.newPage();
+    const errors = []; page.on('pageerror', e => errors.push(e.message));
+    await page.route(SYNC + '/**', async route => {
+      const res = await worker.fetch(new Request(route.request().url(), { method: route.request().method() }), env);
+      route.fulfill({ status: res.status, headers: Object.fromEntries(res.headers), body: await res.text() });
+    });
+    await page.goto(BASE_URL + 'parent.html');
+    await page.fill('#key', KEY); await page.click('#go'); await sleep(800);
+    ok((await page.textContent('#title')) === 'How Ada is doing', 'it loads her record by the sync key');
+    ok(await page.evaluate(() => document.querySelectorAll('#rep .smp canvas').length) >= 1 && /Her next sitting/.test(await page.textContent('#rep')),
+       'with her handwriting and what comes next');
+    await page.reload(); await sleep(800);
+    ok((await page.textContent('#title')) === 'How Ada is doing', 'the key is remembered on that phone');
+    await page.screenshot({ path: `test/out/${engine}-parent-phone.png`, fullPage: true });
+    ok(!errors.length, 'no errors', errors.join(' | '));
+    await ctx.close();
+  }
+
+  /* ---------------------------------------------------------------- */
+  console.log('\nleft hand, and paper every third sitting');
+  {
+    const { page, errors, said } = await open(b, { seed: { name: 'ADA', lang: 'pl', left: true, sessionsAll: 2 }, log: seedLog([...SHAPES2, ['L', 2]]), viewport: IPAD_LAND });
+    await enter(page);
+    await runItemOf(page, 'L');
+    await ready(page, 'C');
+    const pos = await page.evaluate(() => ({ m: document.getElementById('model').getBoundingClientRect().left, p: document.getElementById('pad').getBoundingClientRect().left }));
+    ok(pos.m > pos.p, 'left-handed: the model is on the right of the pad');
+    await draw(page, childify(P.G.L, { seed: 4, place: false }));
+    await until(page, () => window.__pisz.current() !== 'write', null, 8000, 'item end');
+    await playSitting(page);
+    ok((await page.textContent('#esub')).includes('kredką na kartce'), 'the third sitting ends with "napisz … kredką na kartce"', await page.textContent('#esub'));
+    ok(!errors.length, 'no errors', errors.join(' | '));
+    await page.context().close();
+  }
+
+  /* ---------------------------------------------------------------- */
+  if (engine === 'chromium') {
+    console.log('\noffline: in the car, at her grandmother\'s');
+    const ctx = await b.newContext({ viewport: IPAD, hasTouch: true });
+    const page = await ctx.newPage();
+    const errors = []; page.on('pageerror', e => errors.push(e.message));
+    await page.goto(BASE_URL + 'index.html?c=0');
+    await page.evaluate(() => navigator.serviceWorker.ready.then(() => true));
+    await page.reload(); await sleep(800);
+    const controlled = await page.evaluate(() => !!navigator.serviceWorker.controller);
+    await ctx.setOffline(true);
+    await page.reload(); await sleep(600);
+    const up = await page.evaluate(() => !!(window.Pisz && document.getElementById('setup')));
+    ok(controlled && up, 'with the network gone the app still opens, engine and all');
+    ok(!errors.length, 'no errors', errors.join(' | '));
+    await ctx.close();
   }
 
   /* ---------------------------------------------------------------- */

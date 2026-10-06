@@ -1,0 +1,21 @@
+<!DOCTYPE html><meta charset="utf-8">
+<!-- renders the app icon: node test/shot.mjs-style screenshot at 512x512 -->
+<body style="margin:0;background:#000"><canvas id="c" width="512" height="512" style="display:block"></canvas>
+<script>
+var x = document.getElementById('c').getContext('2d');
+var g = x.createLinearGradient(0, 0, 512, 512);
+g.addColorStop(0, '#a78bfa'); g.addColorStop(1, '#7c3aed');
+x.fillStyle = g; x.fillRect(0, 0, 512, 512);
+/* the road an A is traced along, then the ink that filled it */
+function A(w, col){
+  x.strokeStyle = col; x.lineWidth = w; x.lineCap = 'round'; x.lineJoin = 'round';
+  x.beginPath(); x.moveTo(256, 112); x.lineTo(150, 400); x.stroke();
+  x.beginPath(); x.moveTo(256, 112); x.lineTo(362, 400); x.stroke();
+  x.beginPath(); x.moveTo(192, 300); x.lineTo(320, 300); x.stroke();
+}
+A(92, 'rgba(255,255,255,.28)');
+A(46, '#ffffff');
+x.fillStyle = '#16a34a'; x.beginPath(); x.arc(256, 112, 34, 0, 7); x.fill();
+x.fillStyle = '#fff'; x.font = '800 40px system-ui,sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
+x.fillText('1', 256, 114);
+</script>

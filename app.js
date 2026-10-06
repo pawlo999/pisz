@@ -57,6 +57,7 @@ var T_ = {
        mark:{ k:'A kreska?', p:'A kropka?', o:'A ogonek?', r:'A kółeczko?' },
        mirror:'Prawie! Ta literka patrzy w drugą stronę.',
        end:'Brawo %s!', endSub:'Pokaż mamie albo tacie!', night:'Na dzisiaj koniec. Do jutra!',
+       paper:'A teraz napisz jedną literkę kredką na kartce i pokaż mamie albo tacie!',
        book:'Moje literki',
        cue:{ d:'w dół', a:'w prawo', s:'na skos', r:'dookoła', b:'brzuszek', u:'w górę i w dół',
              w:'fala', z:'zygzak', q:'kwadrat', k:'kreska', o:'ogonek', p:'kropka' } },
@@ -69,6 +70,7 @@ var T_ = {
        mark:{ k:'Og streken?', p:'Og prikken?', o:'Og halen?', r:'Og ringen?' },
        mirror:'Nesten! Den bokstaven snur andre veien.',
        end:'Bra jobba %s!', endSub:'Vis mamma eller pappa!', night:'Det var alt for i dag. Vi ses i morgen!',
+       paper:'Skriv en av bokstavene med fargestift på et ark, og vis mamma eller pappa!',
        book:'Bokstavene mine',
        cue:{ d:'ned', a:'bortover', s:'på skrå', r:'rundt', b:'bue', u:'opp og ned',
              w:'bølge', z:'sikksakk', q:'firkant', k:'strek', o:'hale', p:'prikk' } }
@@ -100,8 +102,8 @@ function theme(c){
 var ROAD = '#efe7fb', ROADEDGE = '#d6c8ee';
 
 /* ============ state ================================================= */
-var S = { name:'', lang:'pl', rate:0.7, size:5, maxS:3, strict:'gentle', digits:false, hum:true,
-          syncKey:'', syncMsg:'', practice:false, day:'', sessionsToday:0, saveError:'' };
+var S = { name:'', lang:'pl', rate:0.7, size:5, maxS:3, strict:'gentle', digits:false, hum:true, left:false,
+          syncKey:'', syncMsg:'', practice:false, day:'', sessionsToday:0, sessionsAll:0, saveError:'' };
 var KEY = 'pisz.child.v1', LKEY = 'pisz.child.log';
 /* never localStorage.clear(), never a key that is not ours: in Safari the
    letters game lives on the same origin, and her prizes are in it        */
@@ -112,7 +114,7 @@ function today(){ return P.dayKey(Date.now()); }
 function load(){
   try{
     var o = JSON.parse(localStorage.getItem(KEY) || '{}');
-    ['name','lang','rate','size','maxS','strict','digits','hum','syncKey','day','sessionsToday']
+    ['name','lang','rate','size','maxS','strict','digits','hum','left','syncKey','day','sessionsToday','sessionsAll']
       .forEach(function(k){ if(o[k] !== undefined) S[k] = o[k]; });
   }catch(e){}
   try{ LOG = JSON.parse(localStorage.getItem(LKEY) || '[]'); }catch(e){ LOG = []; }
@@ -123,7 +125,8 @@ function load(){
 function save(){
   try{
     localStorage.setItem(KEY, JSON.stringify({ name:S.name, lang:S.lang, rate:S.rate, size:S.size, maxS:S.maxS,
-      strict:S.strict, digits:S.digits, hum:S.hum, syncKey:S.syncKey, day:S.day, sessionsToday:S.sessionsToday }));
+      strict:S.strict, digits:S.digits, hum:S.hum, left:S.left, syncKey:S.syncKey, day:S.day,
+      sessionsToday:S.sessionsToday, sessionsAll:S.sessionsAll }));
   }catch(e){ S.saveError = String(e && e.message || e); }
 }
 function saveLog(){
@@ -895,6 +898,7 @@ function freeStep(id, st, opt){
 function sizeModel(){
   var stage = $('stage'), r = stage.getBoundingClientRect(), portrait = r.height > r.width;
   stage.classList.toggle('portrait', portrait);
+  stage.classList.toggle('lefty', !!S.left);
   var m = $('model');
   if(portrait){ m.style.width = ''; m.style.height = Math.round(r.height * 0.26) + 'px'; }
   else { m.style.height = ''; m.style.width = Math.round(r.width * 0.24) + 'px'; }
@@ -1046,15 +1050,21 @@ $('wback').addEventListener('click', function(){
 /* ============ end of a session ===================================== */
 function endSession(){
   if(!S.practice){
-    S.sessionsToday++; save();
+    S.sessionsToday++; S.sessionsAll++; save();
     LOG.push({ t:Date.now(), l:S.lang, k:'S', x:String(SES.items.length), ms:Date.now() - SES.started });
     saveLog();
     cloudSync();
   }
   var night = S.sessionsToday >= S.maxS && !S.practice;
-  $('guest').textContent = pick(GUESTS);
+  /* the screen is not the goal, paper is: every third sitting that had a
+     letter in it ends by sending her to a crayon (transfer to paper is
+     what the studies measure — Patchan & Puranik 2016)                  */
+  var hadLetter = SES.items.some(function(it){ return it.name || G[it.g] && G[it.g].kind !== 'shape'; });
+  var paper = hadLetter && S.sessionsAll % 3 === 0 && !S.practice;
+  var sub = paper ? tx().paper : night ? tx().night : tx().endSub;
+  $('guest').textContent = paper ? '🖍️' : pick(GUESTS);
   $('etitle').textContent = nm(tx().end);
-  $('esub').textContent = night ? tx().night : tx().endSub;
+  $('esub').textContent = sub;
   var host = $('today'); host.textContent = '';
   SES.samples.slice(-10).forEach(function(s){
     var c = el('canvas'); host.appendChild(c);
@@ -1065,7 +1075,7 @@ function endSession(){
   confetti();
   tone([523, 659, 784, 1047, 1319]);
   show('end');
-  setTimeout(function(){ say(nm(tx().end) + ' ' + (night ? tx().night : tx().endSub)); }, 400);
+  setTimeout(function(){ say(nm(tx().end) + ' ' + sub); }, 400);
 }
 $('again').addEventListener('click', function(){
   unlock();
@@ -1166,7 +1176,7 @@ var forced = (location.search.match(/[?&]c=(\d)/) || [])[1];
 theme(PALETTE[forced !== undefined ? (+forced % PALETTE.length) : (Math.random() * PALETTE.length) | 0]);
 $('build').textContent = 'b' + BUILD;
 setTimeout(cloudSync, 1500);
-if('serviceWorker' in navigator && location.protocol === 'https:'){
+if('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')){
   navigator.serviceWorker.register('sw.js').catch(function(){});
 }
 
@@ -1245,6 +1255,7 @@ function paintChoices(){
   mark('[data-digits]', 'data-digits', S.digits ? 1 : 0);
   mark('[data-hum]', 'data-hum', S.hum ? 1 : 0);
   mark('[data-setlang]', 'data-setlang', S.lang);
+  mark('[data-hand]', 'data-hand', S.left ? 1 : 0);
   $('practicebtn').textContent = 'Test run: ' + (S.practice ? 'ON' : 'OFF');
   $('practicebtn').className = 'pbtn' + (S.practice ? ' warn' : '');
 }
@@ -1259,6 +1270,9 @@ Array.prototype.forEach.call(document.querySelectorAll('[data-digits]'), functio
 });
 Array.prototype.forEach.call(document.querySelectorAll('[data-hum]'), function(b){
   b.addEventListener('click', function(){ S.hum = b.getAttribute('data-hum') === '1'; save(); paintChoices(); });
+});
+Array.prototype.forEach.call(document.querySelectorAll('[data-hand]'), function(b){
+  b.addEventListener('click', function(){ S.left = b.getAttribute('data-hand') === '1'; save(); paintChoices(); });
 });
 Array.prototype.forEach.call(document.querySelectorAll('[data-setlang]'), function(b){
   b.addEventListener('click', function(){ S.lang = b.getAttribute('data-setlang'); save(); paintChoices(); paintHome(); });

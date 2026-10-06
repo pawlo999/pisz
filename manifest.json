@@ -1,0 +1,13 @@
+{
+  "name": "Pisz",
+  "short_name": "Pisz",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#e9ddfb",
+  "theme_color": "#8b5cf6",
+  "icons": [
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

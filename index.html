@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Pisz">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#8b5cf6">
+<title>Pisz</title>
+<style>
+  :root{
+    --main:#8b5cf6; --main-dark:#6d3fd6; --main-soft:#8b5cf638; --on-main:#fff;
+    --bg:#e6d9fb; --bg2:#cdb4f5; --ink:#241634; --dim:#6b5a80;
+    --card:#ffffff; --line:#c2a9e8;
+    --good:#22c55e; --good-dark:#15803d; --start:#16a34a;
+  }
+  /* touch-action on html and body too: on iPad `none` on an absolutely
+     positioned element alone does not stop double-tap zoom (WebKit 218015) */
+  html,body{touch-action:none;}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;
+    -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
+  html{height:100%;background:var(--bg2);}
+  html.dark{background:#14161c;}
+  html,body{margin:0;overflow:hidden;}
+  body{position:fixed;inset:0;
+       background:linear-gradient(168deg,var(--bg) 0%,var(--bg2) 100%);color:var(--ink);
+       font:700 18px/1.4 ui-rounded,"SF Pro Rounded",system-ui,-apple-system,sans-serif;
+       display:flex;flex-direction:column;}
+  button{font-family:inherit;color:inherit;cursor:pointer;}
+
+  .screen{flex:1;display:none;flex-direction:column;align-items:center;justify-content:center;
+          padding:calc(20px + env(safe-area-inset-top,0px)) 20px calc(20px + env(safe-area-inset-bottom,0px));
+          text-align:center;min-height:0;}
+  .screen.on{display:flex;}
+
+  /* ---------- first launch, home, language ---------- */
+  .hi{font-size:26px;color:var(--dim);margin-bottom:10px;}
+  .avatar{width:min(46vw,210px);height:min(46vw,210px);border-radius:50%;background:var(--main);
+          display:flex;align-items:center;justify-content:center;font-size:min(25vw,112px);
+          border:0;padding:0;box-shadow:0 12px 0 var(--main-dark),0 22px 40px rgba(40,10,80,.22);}
+  .avatar:active{transform:translateY(7px);box-shadow:0 5px 0 var(--main-dark);}
+  .pname{font-size:44px;font-weight:800;margin-top:26px;}
+  .nameinput{font:800 34px/1 ui-rounded,system-ui,sans-serif;text-align:center;
+             border:0;border-radius:20px;padding:16px 20px;width:min(76vw,360px);
+             background:var(--card);color:var(--ink);box-shadow:0 6px 0 var(--line);
+             margin-bottom:22px;-webkit-user-select:text;user-select:text;}
+  .setuphint{font-size:14px;color:var(--dim);margin-top:18px;max-width:340px;font-weight:600;}
+  .flags{display:flex;gap:34px;flex-wrap:wrap;justify-content:center;}
+  .flag{width:200px;height:162px;border-radius:34px;background:var(--card);
+        border:0;font-size:88px;display:flex;align-items:center;justify-content:center;
+        padding:0;box-shadow:0 9px 0 var(--line),0 18px 34px rgba(40,10,80,.16);}
+  .flag:active{transform:translateY(6px);box-shadow:0 3px 0 var(--line);}
+  .wtitle{font-size:clamp(32px,6.5vh,50px);font-weight:800;margin-top:28px;}
+  .build{position:fixed;bottom:calc(7px + env(safe-area-inset-bottom,0px));right:12px;font-size:11px;
+         color:var(--dim);opacity:.4;font-weight:600;z-index:20;}
+
+  /* ---------- today's path ---------- */
+  .ptitle{font-size:clamp(26px,4.6vh,38px);font-weight:800;margin-bottom:clamp(14px,3vh,30px);}
+  .bubbles{display:flex;flex-wrap:wrap;gap:clamp(14px,2.4vh,26px);justify-content:center;max-width:900px;}
+  .bub{width:clamp(96px,15vh,150px);height:clamp(96px,15vh,150px);border-radius:32px;border:0;padding:0;
+       background:var(--card);box-shadow:0 8px 0 var(--line);position:relative;display:flex;
+       align-items:center;justify-content:center;}
+  .bub canvas{width:78%;height:78%;}
+  .bub.done{background:var(--card);box-shadow:0 8px 0 var(--good-dark);}
+  .bub.done::after{content:'⭐️';position:absolute;right:-8px;top:-10px;font-size:30px;}
+  .bub.next{box-shadow:0 8px 0 var(--main-dark),0 0 0 6px var(--main);animation:breathe 1.6s ease-in-out infinite;}
+  .bub.later{opacity:.55;}
+  .bub:active{transform:translateY(5px);}
+  @keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
+  .rowbtns{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;margin-top:clamp(18px,4vh,40px);}
+  .go{background:var(--main);color:var(--on-main);border:0;border-radius:22px;
+      padding:18px 32px;font-size:24px;font-weight:800;box-shadow:0 7px 0 var(--main-dark);min-width:92px;}
+  .go:active{transform:translateY(5px);box-shadow:0 2px 0 var(--main-dark);}
+  .go.ghost{background:var(--card);color:var(--ink);box-shadow:0 7px 0 var(--line);font-size:32px;padding:12px 24px;}
+  .go.ghost:active{box-shadow:0 2px 0 var(--line);}
+
+  /* ---------- writing ---------- */
+  #write{justify-content:flex-start;padding:0;}
+  .top{width:100%;display:flex;align-items:center;gap:10px;flex:none;
+       padding:calc(10px + env(safe-area-inset-top,0px)) 66px 4px 12px;}
+  .navb{width:52px;height:52px;border-radius:50%;background:transparent;border:0;flex:none;
+        font:600 26px/1 ui-rounded,system-ui,sans-serif;color:var(--dim);opacity:.6;padding:0;}
+  .navb:active{opacity:1;transform:scale(.92);}
+  .dots{flex:1;display:flex;gap:8px;justify-content:center;align-items:center;min-width:0;}
+  .dot{width:16px;height:16px;border-radius:50%;background:rgba(255,255,255,.55);box-shadow:inset 0 0 0 2px var(--line);}
+  .dot.f{background:var(--main);box-shadow:none;}
+  .dot.c{background:var(--card);box-shadow:0 0 0 3px var(--main);}
+  .word{display:flex;align-items:center;gap:10px;border:0;background:rgba(255,255,255,.7);
+        border-radius:22px;padding:6px 16px 6px 10px;font-size:28px;font-weight:800;flex:none;
+        box-shadow:0 5px 0 rgba(70,30,120,.12);max-width:46vw;}
+  .word .e{font-size:40px;line-height:1;}
+  .word .w{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:.04em;}
+  .word:active{transform:scale(.96);}
+  .stage{flex:1;width:100%;display:flex;min-height:0;position:relative;
+         padding:6px 14px calc(14px + env(safe-area-inset-bottom,0px));gap:14px;}
+  .stage.portrait{flex-direction:column;}
+  .model{flex:none;background:rgba(255,255,255,.55);border-radius:28px;display:none;
+         align-items:center;justify-content:center;position:relative;}
+  .model.on{display:flex;}
+  .model canvas{position:absolute;inset:0;width:100%;height:100%;}
+  .pad{flex:1;position:relative;border-radius:30px;background:var(--card);min-height:0;min-width:0;
+       box-shadow:0 10px 30px rgba(40,10,80,.13);overflow:hidden;touch-action:none;}
+  .pad canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;}
+  .tools{position:absolute;bottom:calc(22px + env(safe-area-inset-bottom,0px));left:28px;right:28px;
+         display:flex;justify-content:space-between;pointer-events:none;z-index:3;}
+  .tool{pointer-events:auto;width:72px;height:72px;border-radius:50%;border:0;padding:0;
+        background:rgba(255,255,255,.92);box-shadow:0 6px 0 var(--line);font-size:34px;}
+  .tool:active{transform:translateY(4px);box-shadow:0 2px 0 var(--line);}
+  .tool.hide{visibility:hidden;}
+  .namestrip{position:absolute;top:10px;left:0;right:0;display:flex;justify-content:center;gap:6px;
+             pointer-events:none;z-index:2;}
+  .namestrip canvas{width:64px;height:76px;border-radius:12px;background:rgba(0,0,0,.035);}
+  .namestrip canvas.cur{box-shadow:0 0 0 3px var(--main);}
+
+  .pop{animation:pp .45s;}
+  @keyframes pp{0%{transform:scale(.4);opacity:0}60%{transform:scale(1.18)}100%{transform:scale(1)}}
+  .shake{animation:sh .4s;}
+  @keyframes sh{0%,100%{transform:translateX(0)}25%{transform:translateX(-9px)}75%{transform:translateX(9px)}}
+  .bigface{display:none;position:fixed;left:0;right:0;top:0;bottom:0;z-index:40;align-items:center;
+           justify-content:center;pointer-events:none;}
+  .bigface.on{display:flex;}
+  .bigface span{font-size:min(44vw,300px);line-height:1;animation:pp .5s, bob 1.4s ease-in-out .5s infinite;
+                filter:drop-shadow(0 18px 30px rgba(40,10,80,.25));}
+  @keyframes bob{0%,100%{transform:translateY(0) rotate(-4deg)}50%{transform:translateY(-24px) rotate(4deg)}}
+  .confetti{position:fixed;left:0;right:0;top:-60px;bottom:-60px;pointer-events:none;z-index:45;
+            overflow:hidden;display:none;}
+  .confetti.on{display:block;}
+  .confetti i{position:absolute;top:-10%;font-style:normal;font-size:24px;animation:fall linear forwards;}
+  @keyframes fall{to{transform:translateY(125vh) rotate(720deg);opacity:.2;}}
+
+  /* ---------- end of a session, her book ---------- */
+  .etitle{font-size:clamp(30px,5.6vh,44px);font-weight:800;margin:10px 0 6px;}
+  .esub{font-size:20px;color:var(--dim);margin-bottom:18px;font-weight:700;}
+  .guest{font-size:clamp(90px,16vh,150px);line-height:1;animation:pp .5s, dance 1.1s ease-in-out .5s infinite;}
+  @keyframes dance{0%,100%{transform:rotate(-8deg) translateY(0)}50%{transform:rotate(8deg) translateY(-14px)}}
+  .today{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;max-width:760px;}
+  .today canvas{width:clamp(78px,12vh,118px);height:clamp(78px,12vh,118px);border-radius:20px;
+                background:var(--card);box-shadow:0 5px 0 rgba(70,30,120,.12);}
+  #book{justify-content:flex-start;overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y;}
+  .btitle{font-size:clamp(26px,4.6vh,38px);font-weight:800;margin:6px 0 16px;}
+  .cards{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;max-width:960px;padding-bottom:30px;}
+  .card{width:clamp(86px,12vh,120px);height:clamp(100px,14vh,140px);border-radius:22px;border:0;padding:6px;
+        background:var(--card);box-shadow:0 5px 0 rgba(70,30,120,.12);display:flex;flex-direction:column;
+        align-items:center;justify-content:space-between;}
+  .card canvas{width:100%;flex:1;min-height:0;}
+  .card .lv{display:flex;gap:3px;height:10px;}
+  .card .lv i{width:9px;height:9px;border-radius:50%;background:var(--line);opacity:.5;}
+  .card .lv i.on{background:var(--main);opacity:1;}
+  .card.none canvas{opacity:.25;}
+  .backx{position:fixed;left:16px;top:calc(14px + env(safe-area-inset-top,0px));
+         width:60px;height:60px;border-radius:50%;background:var(--main);
+         color:var(--on-main);border:0;padding:0;z-index:9;
+         font:800 32px/1 ui-rounded,system-ui,sans-serif;box-shadow:0 6px 0 var(--main-dark);}
+  .backx:active{transform:translateY(5px);box-shadow:0 2px 0 var(--main-dark);}
+  .detail{display:none;position:fixed;inset:0;z-index:30;background:rgba(20,8,40,.72);
+          align-items:center;justify-content:center;flex-direction:column;gap:18px;}
+  .detail.on{display:flex;}
+  .detail .row{display:flex;gap:18px;flex-wrap:wrap;justify-content:center;}
+  .detail canvas{width:min(40vw,260px);height:min(40vw,260px);border-radius:28px;background:var(--card);}
+  .detail .cap{color:#fff;font-size:22px;font-weight:800;}
+
+  /* ---------- the parent's side ---------- */
+  .gear{position:fixed;z-index:28;top:calc(8px + env(safe-area-inset-top,0px));right:10px;
+        width:52px;height:52px;border-radius:50%;background:transparent;border:0;
+        font-size:22px;color:var(--dim);opacity:.42;padding:0;margin:0;}
+  .gear:active{opacity:1;transform:scale(.92);}
+  .band{display:none;position:fixed;top:0;left:0;right:0;z-index:30;background:#7a2e39;color:#fff;
+        font-size:12px;font-weight:700;letter-spacing:.06em;text-align:center;
+        padding:calc(3px + env(safe-area-inset-top,0px)) 8px 3px;}
+  #parent,#stats{justify-content:flex-start;overflow-y:auto;-webkit-overflow-scrolling:touch;
+                 background:#14161c;color:#eceff5;touch-action:pan-y;}
+  #parent.on,#stats.on{position:fixed;inset:0;z-index:25;}
+  #parent h3,#stats h3{margin:4px 0 16px;font-size:19px;font-weight:800;}
+  .prow{width:100%;max-width:460px;text-align:left;margin-bottom:20px;}
+  .prow label{display:block;font-size:14px;color:#9aa3b2;margin-bottom:7px;font-weight:600;}
+  .prow input[type=range]{width:100%;accent-color:#7c5cff;height:32px;touch-action:pan-x;}
+  .pbtn{background:#39415a;color:#fff;border:0;border-radius:12px;padding:14px 18px;
+        font-size:16px;font-weight:700;margin:0 8px 8px 0;}
+  .pbtn.warn{background:#7a2e39;}
+  .pbtn.on{background:#7c5cff;box-shadow:inset 0 0 0 2px #b9a6ff;}
+  .synckeyin{font-size:15px !important;width:100% !important;padding:12px 14px !important;
+             margin-bottom:0 !important;box-shadow:none !important;background:#0b0d12 !important;
+             color:#cfd5e1 !important;font-family:ui-monospace,monospace !important;}
+  .dump{display:none;width:100%;max-width:560px;height:120px;margin-top:8px;font-size:11px;
+        background:#0b0d12;color:#7f8899;border:1px solid #262b38;border-radius:8px;
+        -webkit-user-select:text;user-select:text;}
+  .rep{width:100%;max-width:640px;text-align:left;font-size:14px;}
+</style>
+</head>
+<body>
+
+<div class="band" id="band">TEST RUN — nothing is recorded</div>
+
+<div class="screen" id="setup">
+  <div class="hi">Who is writing?</div>
+  <input id="nameinput" class="nameinput" type="text" autocomplete="off"
+         autocapitalize="characters" maxlength="12" placeholder="name">
+  <button class="go" id="namego">OK</button>
+  <div class="setuphint">Kept on this iPad only. The app uses the letters of this name, so type it the way she writes it.</div>
+</div>
+
+<div class="screen on" id="home">
+  <div class="hi" id="greet">Cześć!</div>
+  <button class="avatar" id="avatar">✏️</button>
+  <div class="pname" id="pname">—</div>
+  <div class="build" id="build"></div>
+</div>
+
+<div class="screen" id="welcome">
+  <div class="avatar pop" id="wav" style="pointer-events:none">✏️</div>
+  <div class="wtitle" id="wtitle"></div>
+</div>
+
+<div class="screen" id="lang">
+  <div class="flags">
+    <button class="flag" data-lang="pl">🇵🇱</button>
+    <button class="flag" data-lang="nb">🇳🇴</button>
+  </div>
+</div>
+
+<div class="screen" id="path">
+  <button class="backx" id="pathback">←</button>
+  <div class="ptitle" id="ptitle"></div>
+  <div class="bubbles" id="bubbles"></div>
+  <div class="rowbtns">
+    <button class="go ghost" id="tobook">📖</button>
+  </div>
+</div>
+
+<div class="screen" id="write">
+  <div class="top">
+    <button class="navb" id="wback">←</button>
+    <div class="dots" id="dots"></div>
+    <button class="word" id="word"><span class="e" id="wemoji"></span><span class="w" id="wword"></span></button>
+  </div>
+  <div class="stage" id="stage">
+    <div class="model" id="model"><canvas id="modelc"></canvas></div>
+    <div class="pad" id="pad">
+      <canvas id="guide"></canvas>
+      <canvas id="ink"></canvas>
+      <canvas id="fx"></canvas>
+      <div class="namestrip" id="namestrip"></div>
+    </div>
+  </div>
+  <div class="tools">
+    <button class="tool" id="watch">👀</button>
+    <button class="tool" id="clear">🧽</button>
+  </div>
+</div>
+
+<div class="screen" id="end">
+  <div class="guest" id="guest">🦊</div>
+  <div class="etitle" id="etitle"></div>
+  <div class="esub" id="esub"></div>
+  <div class="today" id="today"></div>
+  <div class="rowbtns">
+    <button class="go ghost" id="endbook">📖</button>
+    <button class="go" id="again">▶</button>
+  </div>
+</div>
+
+<div class="screen" id="book">
+  <button class="backx" id="bookback">←</button>
+  <div class="btitle" id="btitle"></div>
+  <div class="cards" id="cards"></div>
+</div>
+<div class="detail" id="detail">
+  <div class="row" id="detailrow"></div>
+  <div class="cap" id="detailcap"></div>
+</div>
+
+<button class="gear" id="gear">⚙</button>
+<div class="confetti" id="confetti"></div>
+<div class="bigface" id="bigface"><span id="bigfacee">⭐️</span></div>
+
+<div class="screen" id="parent">
+  <h3>Parent settings</h3>
+  <div class="prow">
+    <button class="pbtn" id="statsbtn" style="width:100%;font-size:18px;padding:16px">How she is doing →</button>
+  </div>
+  <div class="prow">
+    <label>Letters in one sitting — <b id="sizev">5</b> (about <b id="minv">4</b> minutes)</label>
+    <input type="range" id="size" min="3" max="10" step="1" value="5">
+  </div>
+  <div class="prow">
+    <label>Sittings a day — <b id="maxv">3</b><br><span style="opacity:.7">after the last one the app says goodnight until tomorrow</span></label>
+    <input type="range" id="maxs" min="1" max="6" step="1" value="3">
+  </div>
+  <div class="prow">
+    <label>How exact her writing must be</label>
+    <button class="pbtn" data-strict="gentle">Gentle</button>
+    <button class="pbtn" data-strict="normal">Normal</button>
+    <button class="pbtn" data-strict="strict">Strict</button>
+  </div>
+  <div class="prow">
+    <label>What she writes</label>
+    <button class="pbtn" data-digits="0">Letters</button>
+    <button class="pbtn" data-digits="1">Letters + numbers</button>
+  </div>
+  <div class="prow">
+    <label>Speech speed — <b id="ratev">0.70</b>×</label>
+    <input type="range" id="rate" min="0.3" max="1.0" step="0.05" value="0.7">
+  </div>
+  <div class="prow">
+    <label>Drawing sound</label>
+    <button class="pbtn" data-hum="1">On</button>
+    <button class="pbtn" data-hum="0">Off</button>
+  </div>
+  <div class="prow">
+    <label>Language</label>
+    <button class="pbtn" data-setlang="pl">🇵🇱 Polski</button>
+    <button class="pbtn" data-setlang="nb">🇳🇴 Norsk</button>
+  </div>
+  <div class="prow">
+    <label>Test run — write without touching her progress</label>
+    <button class="pbtn" id="practicebtn">Test run: OFF</button>
+  </div>
+  <div class="prow">
+    <label>Today: <b id="todayv">—</b></label>
+    <label>Launched: <b id="modev">—</b> · build <b id="buildv">—</b></label>
+    <label>Saving: <b id="savev">—</b></label>
+  </div>
+  <div class="prow">
+    <label>Sync key — the same one on every device; also opens her progress on parent.html</label>
+    <input id="synckey" class="nameinput synckeyin" type="text" autocomplete="off"
+           autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="not set">
+    <div style="margin-top:8px">
+      <button class="pbtn" id="syncsave">Save key</button>
+      <button class="pbtn" id="syncnow">Sync now</button>
+    </div>
+    <label style="margin-top:8px">Status: <b id="syncstat">—</b></label>
+  </div>
+  <div class="prow">
+    <label>This iPad</label>
+    <button class="pbtn" id="devcheck">Check this device</button>
+    <label id="devout" style="white-space:pre-wrap;font-family:ui-monospace,monospace;font-size:12px"></label>
+  </div>
+  <div class="prow">
+    <button class="pbtn" id="copydata">Copy all data</button>
+    <button class="pbtn" id="mergebtn">Merge pasted data</button>
+    <textarea id="dump" class="dump"></textarea>
+  </div>
+  <div class="prow">
+    <button class="pbtn" id="rename">Change name</button>
+    <button class="pbtn" id="pback">Back</button>
+  </div>
+</div>
+
+<div class="screen" id="stats">
+  <h3>How she is doing</h3>
+  <div class="rep" id="rep"></div>
+  <div class="prow" style="margin-top:16px"><button class="pbtn" id="sback">Back</button></div>
+</div>
+
+<script src="engine.js"></script>
+<script src="report.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

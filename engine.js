@@ -154,8 +154,9 @@ glyph('|',   'shape', ['M 0 0 L 0 100'],                         { cue:['d'], th
 glyph('-',   'shape', ['M 0 50 L 100 50'],                       { cue:['a'], theme:'road' });
 glyph('o',   'shape', ['A 50 50 50 50 -90 -450'],                { cue:['r'], theme:'ball' });
 glyph('+',   'shape', ['M 50 0 L 50 100', 'M 0 50 L 100 50'],    { cue:['d','a'], theme:'plus', needs:['|','-'] });
-glyph('\\',  'shape', ['M 0 0 L 80 100'],                        { cue:['s'], theme:'slide', needs:['|','-'] });
 glyph('/',   'shape', ['M 80 0 L 0 100'],                        { cue:['s'], theme:'slide', needs:['|','-'] });
+glyph('\\',  'shape', ['M 0 0 L 80 100'],                        { cue:['s'], theme:'slide', needs:['|','-'] });
+glyph('#',   'shape', ['M 0 0 L 0 90 L 90 90 L 90 0 L 0 0'],      { cue:['q'], theme:'box', needs:['|','-'] });
 glyph('^',   'shape', ['M 0 100 L 45 0 L 90 100'],               { cue:['u'], theme:'mountain', needs:['\\','/'] });
 glyph('~',   'shape', ['M 0 55 C 12 20 38 20 50 55 C 62 90 88 90 100 55'], { cue:['w'], theme:'wave', needs:['o'] });
 glyph('n',   'shape', ['A 50 100 50 75 180 360'],                { cue:['r'], theme:'rainbow', needs:['o'] });
@@ -176,17 +177,17 @@ var L = {
   J:[['M 52 0 L 52 70 A 26 70 26 30 0 180'], 'd', ['|','o']],
   K:[['M 0 0 L 0 100','M 60 0 L 3 54 L 62 100'], 'ds', ['|','\\','/']],
   L:[['M 0 0 L 0 100 L 56 100'], 'd', ['|','-']],
-  M:[['M 0 0 L 0 100','M 0 0 L 42 68 L 84 0 L 84 100'], 'ds', ['|','\\','/']],
+  M:[['M 0 0 L 0 100','M 0 0 L 42 100 L 84 0 L 84 100'], 'ds', ['|','\\','/']],
   N:[['M 0 0 L 0 100','M 0 0 L 68 100 L 68 0'], 'ds', ['|','\\']],
   O:[['A 46 50 46 50 -90 -450'], 'r', ['o']],
   P:[['M 0 0 L 0 100','M 0 0 C 76 0 76 54 0 54'], 'db', ['|','o']],
   Q:[['A 46 50 46 50 -90 -450','M 58 70 L 94 104'], 'rs', ['o','\\']],
   R:[['M 0 0 L 0 100','M 0 0 C 74 0 74 52 0 52 L 62 100'], 'db', ['|','o','\\']],
   S:[['A 36 25 33 25 -25 -270 A 36 75 35 25 -90 150'], 'r', ['o','~']],
-  T:[['M 0 0 L 70 0','M 35 0 L 35 100'], 'ad', ['|','-']],
+  T:[['M 35 0 L 35 100','M 0 0 L 70 0'], 'da', ['|','-']],
   U:[['M 0 0 L 0 66 A 33 66 33 34 180 0 L 66 0'], 'd', ['|','o']],
   V:[['M 0 0 L 38 100 L 76 0'], 's', ['\\','/']],
-  W:[['M 0 0 L 24 100 L 52 32 L 80 100 L 104 0'], 's', ['\\','/']],
+  W:[['M 0 0 L 24 100 L 52 0 L 80 100 L 104 0'], 's', ['\\','/']],
   X:[['M 0 0 L 70 100','M 70 0 L 0 100'], 'ss', ['\\','/']],
   Y:[['M 0 0 L 36 50','M 72 0 L 36 50 L 36 100'], 'ss', ['\\','/','|']],
   Z:[['M 0 0 L 66 0 L 0 100 L 66 100'], 'a', ['-','/']]
@@ -203,18 +204,18 @@ function withMark(id, base, mark, cue, dx){
                                               needs:[base], base:base });
 }
 withMark('Ą', 'A', 'M 80 100 C 64 106 64 124 84 122', 'o');
-withMark('Ć', 'C', 'M 62 -30 L 44 -10', 'k');
+withMark('Ć', 'C', 'M 60 -32 L 48 -10', 'k');
 withMark('Ę', 'E', 'M 56 100 C 40 106 40 124 60 122', 'o');
-withMark('Ł', 'L', 'M -12 66 L 26 38', 'k');
-withMark('Ń', 'N', 'M 46 -30 L 28 -10', 'k');
-withMark('Ó', 'O', 'M 58 -30 L 40 -10', 'k');
-withMark('Ś', 'S', 'M 50 -30 L 32 -10', 'k');
-withMark('Ź', 'Z', 'M 44 -30 L 26 -10', 'k');
+withMark('Ł', 'L', 'M 24 36 L -12 64', 'k');
+withMark('Ń', 'N', 'M 44 -32 L 32 -10', 'k');
+withMark('Ó', 'O', 'M 58 -32 L 46 -10', 'k');
+withMark('Ś', 'S', 'M 48 -32 L 36 -10', 'k');
+withMark('Ź', 'Z', 'M 42 -32 L 30 -10', 'k');
 withMark('Ż', 'Z', 'D 33 -16', 'p');
 withMark('Ø', 'O', 'M 90 -8 L 2 108', 'k');
 withMark('Å', 'A', 'A 40 -17 11 11 -90 -450', 'r');
-glyph('Æ', 'letter', ['M 48 0 L 0 100', 'M 48 0 L 48 100 L 98 100', 'M 48 0 L 96 0',
-                      'M 48 50 L 90 50', 'M 16 66 L 48 66'],
+glyph('Æ', 'letter', ['M 48 0 L 0 100', 'M 48 0 L 48 100', 'M 48 0 L 96 0',
+                      'M 24 50 L 90 50', 'M 48 100 L 96 100'],
       { cue:'sdaaa'.split(''), needs:['A','E'] });
 
 /* -- digits, European forms: 1 with a flag, 7 without a bar -- */
@@ -226,7 +227,7 @@ var D = {
   '4':[['M 42 0 L 0 66 L 66 66','M 50 30 L 50 100'], 'sd', ['|','-','/']],
   '5':[['M 6 0 L 3 44 C 30 32 64 40 62 70 C 60 104 18 106 0 88','M 6 0 L 58 0'], 'da', ['|','o']],
   '6':[['M 56 4 C 22 -8 2 26 2 62 C 2 92 20 100 34 100 C 54 100 66 88 66 70 C 66 52 52 42 36 42 C 20 42 6 50 2 64'], 'r', ['o']],
-  '7':[['M 0 0 L 64 0 L 20 100'], 'a', ['-','/']],
+  '7':[['M 0 0 L 64 0 L 20 100','M 16 52 L 58 52'], 'aa', ['-','/']],
   '8':[['M 56 18 C 52 -6 8 -6 8 20 C 8 44 62 52 62 76 C 62 106 2 106 2 76 C 2 52 56 44 56 18'], 'r', ['o','~']],
   '9':[['A 32 28 28 28 -15 -360 L 60 100'], 'r', ['o','|']]
 };
@@ -262,13 +263,17 @@ P.glyph = function(id){ return G[id]; };
    lines, then round, then line-plus-round, then slants, then S. A letter is
    offered only once the shapes it is built from are in her hand (`needs`),
    and the letters of her own name jump the queue as soon as they qualify.  */
-P.SHAPES  = ['|','-','o','+','\\','/','^','~','n','x','z'];
+P.SHAPES  = ['|','-','o','+','/','\\','#','x','^','z','n','~'];
+/* Straight lines, then round, then slanted (the HWT pre-K order; O is
+   the capital preschoolers write correctly most often — Puranik & Lonigan
+   2011), S last of the plain ones because it is the hardest. Polish has
+   no Q V X and Norwegian hardly uses Q or X: X is practised as a shape.  */
 P.LETTERS = {
-  pl:['L','I','T','H','F','E','O','C','U','D','P','B','R','J','G','Q',
-      'V','X','A','N','M','K','W','Y','Z','S',
+  pl:['L','I','T','H','F','E','O','C','U','D','P','B','R','J','G',
+      'A','N','M','K','W','Y','Z','S',
       'Ł','Ó','Ć','Ę','Ą','Ń','Ś','Ż','Ź'],
-  nb:['L','I','T','H','F','E','O','C','U','D','P','B','R','J','G','Q',
-      'V','X','A','N','M','K','W','Y','Z','S',
+  nb:['L','I','T','H','F','E','O','C','U','D','P','B','R','J','G',
+      'A','V','N','M','K','W','Y','Z','S',
       'Ø','Å','Æ']
 };
 P.DIGITS = ['1','0','7','4','2','3','5','6','8','9'];
@@ -293,6 +298,7 @@ function Tracer(stroke, opt){
   this.done = false;
   this.last = null;
   this.offRun = 0;                     /* units drawn off the line, this go  */
+  this.bidir = !!opt.bidir;            /* an accent or slash: either way is right */
   this.off = 0;                        /* total units drawn off the line     */
   this.lifts = 0;
 }
@@ -316,9 +322,17 @@ Tracer.prototype.begin = function(p){
     this.move(p);
     return 'ok';
   }
+  /* nobody teaches which way an accent or a slash goes: from either end */
+  var end = this.s.pts[this.s.pts.length-1];
+  if(this.bidir && this.idx === 0 && dist(p, end) <= this.startTol){
+    var rp = this.s.pts.slice().reverse(), cum = [0];
+    for(var i = 1; i < rp.length; i++) cum.push(cum[i-1] + dist(rp[i-1], rp[i]));
+    this.s = { pts:rp, cum:cum, len:this.s.len, dot:false };
+    this.bidir = false;
+    return this.begin(p);
+  }
   /* why not: began at the far end (backwards), somewhere else on the line,
      or nowhere near it                                                    */
-  var end = this.s.pts[this.s.pts.length-1];
   if(this.idx === 0 && dist(p, end) <= this.startTol && dist(end, here) > this.startTol) return 'end';
   if(this.nearest(p).d <= this.tol) return 'start';
   return 'off';
@@ -364,7 +378,15 @@ Tracer.prototype.move = function(p){
   return r;
 };
 
-Tracer.prototype.end = function(){ this.down = false; this.last = null; };
+/* lifting the finger a little short of the end still finishes the stroke:
+   children stop short, and a wobble near the end is not a missing part  */
+Tracer.prototype.end = function(){
+  if(this.down && !this.done && this.idx > 0 &&
+     this.s.len - this.s.cum[this.idx] <= Math.max(this.endTol * 1.5, this.s.len * 0.1)){
+    this.idx = this.s.pts.length - 1; this.done = true;
+  }
+  this.down = false; this.last = null;
+};
 
 P.Tracer = Tracer;
 
@@ -382,50 +404,125 @@ P.Tracer = Tracer;
 var FIT_FY = [0.82, 0.91, 1, 1.1, 1.22];
 var FIT_FX = [0.68, 0.8, 0.9, 1, 1.12, 1.26, 1.45];
 
-function tmplPoints(g, mirror){
-  /* template strokes at ~3 units: enough to measure coverage, cheap to fit */
-  return g.strokes.map(function(s){
-    var pts = s.dot ? s.pts : bySpacing(s.pts, 3);
-    if(mirror) pts = pts.map(function(p){ return { x:g.box.x0 + g.box.x1 - p.x, y:p.y }; });
-    return pts;
+/* Points carry the direction of the line through them (unsigned: a line
+   drawn backwards still lies the same way). Two points only match when
+   they are close AND their lines run the same way. Without it a Z
+   "covered" an I and an E passed as a B: at a forgiving tolerance
+   everything is near something. 1883 of 3422 wrong-letter pairs passed
+   on distance alone.                                                     */
+P.TUNE = { cos:0.6 };
+
+function tangents(pts, k){
+  return pts.map(function(p, i){
+    var a = pts[Math.max(0, i - k)], b = pts[Math.min(pts.length - 1, i + k)];
+    var dx = b.x - a.x, dy = b.y - a.y, L = Math.sqrt(dx*dx + dy*dy);
+    return { x:p.x, y:p.y, tx:L > 1e-6 ? dx / L : 0, ty:L > 1e-6 ? dy / L : 0 };
   });
 }
 
-function coverScore(T, flatU, tol){
-  var tol2 = tol*tol, cov = [], prec = 0, tAll = [];
-  T.forEach(function(s){
-    var hit = 0;
-    s.forEach(function(p){
-      tAll.push(p);
-      for(var i = 0; i < flatU.length; i++){ if(d2(p, flatU[i]) <= tol2){ hit++; return; } }
+function same(a, b, tol2){
+  if(d2(a, b) > tol2) return false;
+  if((!a.tx && !a.ty) || (!b.tx && !b.ty)) return true;       /* a dot has no direction */
+  return Math.abs(a.tx*b.tx + a.ty*b.ty) >= P.TUNE.cos;
+}
+
+/* points bucketed by cell, so "is anything near p" reads nine cells
+   instead of every point — the judge runs on every lift of her finger,
+   once per rival letter, on a tablet                                    */
+function Grid(pts, cell){
+  this.c = cell; this.m = {};
+  for(var i = 0; i < pts.length; i++){
+    var p = pts[i], k = Math.floor(p.x / cell) + ',' + Math.floor(p.y / cell);
+    (this.m[k] || (this.m[k] = [])).push(p);
+  }
+}
+Grid.prototype.any = function(p, tol2){
+  var cx = Math.floor(p.x / this.c), cy = Math.floor(p.y / this.c);
+  for(var dx = -1; dx <= 1; dx++) for(var dy = -1; dy <= 1; dy++){
+    var b = this.m[(cx + dx) + ',' + (cy + dy)];
+    if(!b) continue;
+    for(var i = 0; i < b.length; i++) if(same(p, b[i], tol2)) return true;
+  }
+  return false;
+};
+
+/* the template, sampled at ~3 units with directions, cached per glyph */
+var PREP = {};
+function prep(g, mirror, tol){
+  var key = g.id + (mirror ? '|m|' : '||') + tol;
+  if(PREP[key]) return PREP[key];
+  var T = g.strokes.map(function(s){
+    var pts = s.dot ? s.pts : bySpacing(s.pts, 3);
+    if(mirror) pts = pts.map(function(p){ return { x:g.box.x0 + g.box.x1 - p.x, y:p.y }; });
+    return s.dot ? pts.map(function(p){ return { x:p.x, y:p.y, tx:0, ty:0 }; }) : tangents(pts, 2);
+  });
+  var all = [].concat.apply([], T);
+  /* an accent, a dot, a slash or a ring has to be its own little stroke:
+     a Z whose top bar happens to pass near where the dot of Ż would be has
+     not drawn the dot. an ogonek may hang off the leg in one go.         */
+  var kind = g.strokes.map(function(s, i){
+    if(s.dot) return 'dot';
+    if(g.mark.indexOf(i) >= 0 && g.cue[i] !== 'o') return 'mark';
+    return 'body';
+  });
+  var pr = PREP[key] = { T:T, all:all, kind:kind, grid:new Grid(all, tol * 1.15) };
+  if(!mirror){
+    var mT = g.strokes.map(function(s){
+      var pts = s.dot ? s.pts : bySpacing(s.pts, 3);
+      pts = pts.map(function(p){ return { x:g.box.x0 + g.box.x1 - p.x, y:p.y }; });
+      return s.dot ? pts.map(function(p){ return { x:p.x, y:p.y, tx:0, ty:0 }; }) : tangents(pts, 2);
     });
-    cov.push(s.length ? hit / s.length : 0);
+    pr.sym = coverScore({ T:T, grid:pr.grid }, mT, tol).minCov >= 0.85;
+  }
+  return pr;
+}
+
+/* V: her strokes, already fitted. tAll / pr.all: flattened points.  */
+function coverScore(pr, V, tol){
+  var tol2 = tol*tol, ptol2 = tol2 * 1.3, cell = tol * 1.15;
+  var flatU = [].concat.apply([], V), ug = new Grid(flatU, cell), mg = null, dg = null;
+  if(pr.kind && pr.kind.some(function(k){ return k !== 'body'; })){
+    var lens = V.map(pathLen), total = lens.reduce(function(a, b){ return a + b; }, 0);
+    mg = new Grid([].concat.apply([], V.filter(function(s, i){ return lens[i] <= total * 0.45; })), cell);
+    dg = new Grid([].concat.apply([], V.filter(function(s, i){ return lens[i] <= 14; })), cell);
+  }
+  var cov = pr.T.map(function(s, k){
+    var hit = 0, grid = !pr.kind ? ug : pr.kind[k] === 'mark' ? mg : pr.kind[k] === 'dot' ? dg : ug;
+    for(var i = 0; i < s.length; i++) if(grid.any(s[i], tol2)) hit++;
+    return s.length ? hit / s.length : 0;
   });
-  var ptol2 = tol2 * 1.3;
-  flatU.forEach(function(u){
-    for(var i = 0; i < tAll.length; i++){ if(d2(u, tAll[i]) <= ptol2){ prec++; return; } }
-  });
+  var prec = 0;
+  for(var j = 0; j < flatU.length; j++) if(pr.grid.any(flatU[j], ptol2)) prec++;
   prec = flatU.length ? prec / flatU.length : 0;
-  var minCov = Math.min.apply(null, cov), mean = cov.reduce(function(a,b){ return a+b; }, 0) / cov.length;
+  var minCov = Math.min.apply(null, cov), mean = cov.reduce(function(a, b){ return a + b; }, 0) / cov.length;
   return { cov:cov, minCov:minCov, meanCov:mean, prec:prec, score:(0.5*minCov + 0.5*mean) * prec };
 }
 
+/* her strokes, scaled and moved; directions are carried through the same
+   stretch so a squashed diagonal still points where it really points    */
 function transform(U, ub, ref, sx, sy, dx, dy){
   return U.map(function(s){
     return s.map(function(p){
-      return { x:(p.x - ub.cx) * sx + ref.cx + dx, y:(p.y - ub.cy) * sy + ref.cy + dy };
+      var tx = p.tx * sx, ty = p.ty * sy, L = Math.sqrt(tx*tx + ty*ty);
+      return { x:(p.x - ub.cx) * sx + ref.cx + dx, y:(p.y - ub.cy) * sy + ref.cy + dy,
+               tx:L > 1e-9 ? tx / L : 0, ty:L > 1e-9 ? ty / L : 0 };
     });
   });
 }
 
-/* best fit of her strokes U onto template T. tries fitting her ink to the
-   whole glyph and to the glyph without its marks, so a missing accent is
-   reported as a missing accent rather than as a squashed letter.        */
-function fit(U, g, T, tol){
+/* best fit of her strokes U onto the template. tries fitting her ink to
+   the whole glyph and to the glyph without its marks, so a missing accent
+   is reported as a missing accent rather than as a squashed letter.     */
+function fit(U, g, pr, tol){
   var flat = [].concat.apply([], U), ub = bbox(flat);
   var refs = [g.box];
   if(g.mark.length) refs.push(g.body);
   var best = null;
+  function tryIt(ref, sx, sy, dx, dy){
+    var V = transform(U, ub, ref, sx, sy, dx, dy);
+    var sc = coverScore(pr, V, tol);
+    if(!best || sc.score > best.sc.score) best = { sc:sc, sx:sx, sy:sy, ref:ref, dx:dx, dy:dy, V:V };
+  }
   refs.forEach(function(ref){
     var base;
     if(ref.h >= 25 && ub.h >= 4) base = ref.h / ub.h;
@@ -435,27 +532,18 @@ function fit(U, g, T, tol){
     var narrow = ref.w < 12;
     FIT_FY.forEach(function(fy){
       (narrow ? [1] : FIT_FX).forEach(function(fx){
-        var sy = base * fy, sx = narrow ? sy : sy * fx;
-        if(!narrow && ub.w >= 4 && ref.w >= 12){
-          /* never stretch her width by more than the table allows */
-        }
-        var V = transform(U, ub, ref, sx, sy, 0, 0);
-        var sc = coverScore(T, [].concat.apply([], V), tol);
-        if(!best || sc.score > best.sc.score) best = { sc:sc, sx:sx, sy:sy, ref:ref, dx:0, dy:0 };
+        var sy = base * fy;
+        tryIt(ref, narrow ? sy : sy * fx, sy, 0, 0);
       });
     });
   });
   /* then nudge position */
   var b0 = best;
-  [-6,-3,0,3,6].forEach(function(dx){
-    [-6,-3,0,3,6].forEach(function(dy){
-      if(!dx && !dy) return;
-      var V = transform(U, ub, b0.ref, b0.sx, b0.sy, dx, dy);
-      var sc = coverScore(T, [].concat.apply([], V), tol);
-      if(sc.score > best.sc.score) best = { sc:sc, sx:b0.sx, sy:b0.sy, ref:b0.ref, dx:dx, dy:dy };
+  [-6, -3, 0, 3, 6].forEach(function(dx){
+    [-6, -3, 0, 3, 6].forEach(function(dy){
+      if(dx || dy) tryIt(b0.ref, b0.sx, b0.sy, dx, dy);
     });
   });
-  best.V = transform(U, ub, best.ref, best.sx, best.sy, best.dx, best.dy);
   best.ub = ub;
   return best;
 }
@@ -475,9 +563,10 @@ function formation(V, g, tol){
       if(hit > bestHit){ bestHit = hit; bestJ = j; }
     });
     out.assign.push(bestJ);
-    if(bestJ < 0 || s.dot){ out.dir.push(true); return; }
+    /* marks: nobody teaches which way an accent or a slash is drawn, so
+       neither way is a mistake                                          */
+    if(bestJ < 0 || s.dot || g.mark.indexOf(ti) >= 0){ out.dir.push(true); return; }
     var u = V[bestJ];
-    /* where along the template stroke her stroke's two ends land */
     function along(p){
       var bi = 0, bd = Infinity;
       for(var i = 0; i < s.pts.length; i++){ var dd = d2(p, s.pts[i]); if(dd < bd){ bd = dd; bi = i; } }
@@ -496,10 +585,10 @@ function formation(V, g, tol){
     used.push(bestJ);
   });
   var first = g.strokes[0], u0 = V[out.assign[0]] || V[0];
-  out.start = u0 && dist(u0[0], first.pts[0]) <= tol * 1.6 || false;
+  out.start = !!(u0 && dist(u0[0], first.pts[0]) <= tol * 1.6);
   if(first && dist(first.pts[0], first.pts[first.pts.length-1]) < 12){
-    /* round letters: anywhere in the top third of the circle counts as the top */
-    out.start = u0 && u0[0].y <= g.box.y0 + g.box.h * 0.4 || false;
+    /* round letters: anywhere in the top 40% of the circle counts as the top */
+    out.start = !!(u0 && u0[0].y <= g.box.y0 + g.box.h * 0.4);
   }
   return out;
 }
@@ -515,45 +604,56 @@ function signedArea(pts){
 
 /* levels of leniency. `gentle` is where a four-year-old starts. */
 P.STRICT = {
-  gentle:{ tol:17, minCov:0.72, minPrec:0.74 },
-  normal:{ tol:14, minCov:0.8,  minPrec:0.8  },
+  gentle:{ tol:15, minCov:0.72, minPrec:0.74 },
+  normal:{ tol:13, minCov:0.8,  minPrec:0.8  },
   strict:{ tol:11, minCov:0.86, minPrec:0.86 }
 };
 
-/* strokes: [[{x,y}...]...] in letter units. returns the verdict. */
-P.judge = function(strokes, id, strictness){
-  var g = G[id], cfg = P.STRICT[strictness || 'gentle'] || P.STRICT.gentle;
-  var res = { ok:false, id:id, errors:[], strokes:strokes.length };
-  var U = strokes.filter(function(s){ return s.length; }).map(function(s){
+function prepUser(strokes, g){
+  var U = strokes.filter(function(s){ return s && s.length; }).map(function(s){
     var sp = bySpacing(s, 2);
     return sp.length ? sp : s;
   });
   /* specks: a stray touch is not a stroke, unless this letter has a dot */
   var hasDot = g.strokes.some(function(s){ return s.dot; });
   U = U.filter(function(s){ return hasDot || pathLen(s) >= 4; });
+  return U.map(function(s){ return tangents(s, 3); });
+}
+
+/* strokes: [[{x,y}...]...] in letter units. returns the verdict.
+   fast: shape only — no mirror test, no formation (used for rivals).    */
+P.judge = function(strokes, id, strictness, fast){
+  var g = G[id], cfg = P.STRICT[strictness || 'gentle'] || P.STRICT.gentle;
+  var res = { ok:false, id:id, errors:[], strokes:strokes.length, score:0 };
+  var U = Array.isArray(strokes.U) ? strokes.U : prepUser(strokes, g);
   if(!U.length){ res.errors.push('empty'); return res; }
 
-  var T = tmplPoints(g, false);
-  var f = fit(U, g, T, cfg.tol);
+  var pr = prep(g, false, cfg.tol);
+  var f = fit(U, g, pr, cfg.tol);
   res.cov = f.sc.cov.map(function(c){ return Math.round(c * 100) / 100; });
   res.prec = Math.round(f.sc.prec * 100) / 100;
   res.score = Math.round(f.sc.score * 100);
   var shapeOk = f.sc.minCov >= cfg.minCov && f.sc.prec >= cfg.minPrec;
+  res.ok = shapeOk;
+  if(fast) return res;
+
+  /* Written as a mirror image? At a tolerance kind enough for a four-year-
+     old a backwards B or S can still pass as the letter, so for any letter
+     that is not its own mirror the mirrored template is always tried: if
+     it fits clearly better, it was written backwards. Normal at this age
+     (Fischer 2021) — shown the model again, never counted against her.  */
+  if(!pr.sym){
+    var pm = prep(g, true, cfg.tol);
+    var fm = fit(U, g, pm, cfg.tol);
+    if(fm.sc.minCov >= cfg.minCov && fm.sc.prec >= cfg.minPrec && fm.sc.score >= f.sc.score + 0.1){
+      res.errors.push('mirror'); shapeOk = false; res.ok = false;
+    }
+  }
 
   /* a missing mark is its own, nameable mistake */
   var markMiss = g.mark.filter(function(i){ return f.sc.cov[i] < cfg.minCov; });
   var bodyOk = f.sc.cov.every(function(c, i){ return g.mark.indexOf(i) >= 0 || c >= cfg.minCov; });
   if(markMiss.length && bodyOk) res.errors.push('mark');
-
-  /* written as a mirror image? only worth asking if it failed and the
-     letter is not symmetric (a mirrored A is still an A)               */
-  if(!shapeOk){
-    var M = tmplPoints(g, true);
-    var fm = fit(U, g, M, cfg.tol);
-    var sym = coverScore(T, [].concat.apply([], M), cfg.tol);
-    if(sym.minCov < 0.9 && fm.sc.minCov >= cfg.minCov && fm.sc.prec >= cfg.minPrec &&
-       fm.sc.score > f.sc.score + 0.15) res.errors.push('mirror');
-  }
 
   var fo = formation(f.V, g, cfg.tol);
   if(!fo.start) res.errors.push('start');
@@ -563,21 +663,60 @@ P.judge = function(strokes, id, strictness){
 
   res.fit = { sx:f.sx, sy:f.sy, dx:f.dx, dy:f.dy, ref:{ cx:f.ref.cx, cy:f.ref.cy }, ub:{ cx:f.ub.cx, cy:f.ub.cy } };
   if(!shapeOk && res.errors.indexOf('mark') < 0 && res.errors.indexOf('mirror') < 0) res.errors.push('shape');
-  res.ok = shapeOk;
   return res;
 };
 
-/* What she drew is mostly another glyph — for the parent, not the child.
-   Compares against a candidate list and returns the best match.          */
+/* The judge above asks "is this close enough to X". With a forgiving
+   tolerance plenty of things are close enough to X — an oval to a 4, an E
+   to an F — so the answer the child sees also asks "is it closer to
+   something else". A rival wins only if it passes on its own and beats the
+   target by a clear margin: a wobbly 4 that is a bit like a 9 still counts.
+   candidates: glyph ids she might plausibly have written instead.        */
+P.MARGIN = 8;
+P.RIVALS = 6;      /* how many of the closest candidates get the full fit */
+P.SAME = [['0','o','O'], ['|','I'], ['x','X']];
+function twins(a, b){
+  return P.SAME.some(function(g){ return g.indexOf(a) >= 0 && g.indexOf(b) >= 0; });
+}
+P.verify = function(strokes, id, strictness, candidates){
+  var r = P.judge(strokes, id, strictness);
+  if(!r.ok) return r;
+  var cache = {}, cfg = P.STRICT[strictness || 'gentle'] || P.STRICT.gentle;
+  var rival = null;
+  function userFor(c){
+    /* prepUser depends only on whether the glyph has a dot; share it */
+    var dotty = G[c].strokes.some(function(s){ return s.dot; }) ? 1 : 0;
+    return cache[dotty] || (cache[dotty] = prepUser(strokes, G[c]));
+  }
+  /* one unshifted fit per candidate to rank them; the full search only for
+     the closest few — the whole alphabet took 216 ms, too slow on a lift */
+  var ranked = (candidates || []).filter(function(c){ return c !== id && G[c] && !twins(c, id); })
+    .map(function(c){
+      var g = G[c], U = userFor(c), ub = bbox([].concat.apply([], U));
+      var base = g.box.h >= 25 && ub.h >= 4 ? g.box.h / ub.h : g.box.w >= 25 && ub.w >= 4 ? g.box.w / ub.w : 1;
+      var V = transform(U, ub, g.box, g.box.w < 12 ? base : base, base, 0, 0);
+      return { c:c, q:coverScore(prep(g, false, cfg.tol), V, cfg.tol).score };
+    })
+    .sort(function(a, b){ return b.q - a.q; })
+    .slice(0, P.RIVALS);
+  ranked.forEach(function(x){
+    var input = []; input.U = userFor(x.c);
+    var o = P.judge(input, x.c, strictness, true);
+    if(o.ok && o.score >= r.score + P.MARGIN && (!rival || o.score > rival.score)) rival = { id:x.c, score:o.score };
+  });
+  if(rival){ r.ok = false; r.errors.push('other'); r.other = rival.id; }
+  return r;
+};
+
+/* What she drew is mostly another glyph — for the parent, not the child. */
 P.closest = function(strokes, candidates, strictness){
   var best = null;
   candidates.forEach(function(id){
-    var r = P.judge(strokes, id, strictness);
+    var r = P.judge(strokes, id, strictness, true);
     if(!best || r.score > best.score) best = { id:id, score:r.score, ok:r.ok };
   });
   return best;
 };
-
 /* ================================================================== */
 /* samples on disk                                                     */
 /* ================================================================== */
@@ -640,7 +779,9 @@ P.rebuild = function(log){
          if(r.st === 'M'){ m.memDays[dayKey(r.t)] = 1; }
          m.lv = Math.max(m.lv, gain);
          if(Object.keys(m.memDays).length >= 2) m.lv = 5;
-       } else if(r.st === 'C' || r.st === 'M'){
+       } else if((r.st === 'C' || r.st === 'M') && !/mirror/.test(r.e || '')){
+         /* a mirrored letter is a stage children pass through, not a miss
+            (Fischer 2021): it is shown again, never counted against her */
          m.fails++;
          /* two misses in a row at the top of what she can do: step back one,
             so the next item gives her the model again                      */
@@ -657,15 +798,21 @@ P.plan = function(m, opt){
   var formErr = m && m.recent.slice(-3).filter(function(r){
     return /start|dir/.test(r.e);
   }).length >= 2;
+  /* watch -> trace -> copy in one go for something new; from memory only
+     on a later visit, because recall after a delay is the step that
+     teaches (Berninger 1997) and the one where reversals show up        */
   var p;
-  if(lv <= 0) p = ['R', 'T'];
-  else if(lv === 1) p = ['T', 'C'];
-  else if(lv === 2) p = ['C', 'M'];
-  else p = ['M'];
+  if(opt.shape){
+    p = lv <= 0 ? ['R', 'T'] : lv === 1 ? ['T', 'C'] : ['C'];
+  } else {
+    if(lv <= 0) p = ['R', 'T', 'C'];
+    else if(lv === 1) p = ['T', 'C'];
+    else if(lv === 2) p = ['C'];
+    else p = ['M'];
+  }
   /* starting points and directions keep going wrong: trace once first,
      which is the only step that will not let her do it backwards        */
   if(formErr && p[0] !== 'R' && p[0] !== 'T') p = ['T'].concat(p);
-  if(opt.shape && lv >= 2) p = ['C'];       /* shapes never need memory work */
   return p;
 };
 

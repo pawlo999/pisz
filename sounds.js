@@ -10,6 +10,12 @@ var CACHE = 'sounds-v1';
 /* letters that sound the same as another one share its recording; NB c
    is the k of its word, "c som i cowboy"                                 */
 var SAME = { pl:{ 'ó':'u' }, nb:{ c:'k', z:'s', w:'v' } };
+/* Norwegian consonants that sound as the Polish ones do play the Polish
+   recording until a Norwegian one exists (his call, 7 Oct: nobody here
+   records Norwegian). Not the vowels — the voice says a Norwegian vowel's
+   name, which is its sound — and not h (Polish /x/) or r (his is rolled).
+   Norwegian v is the Polish w.                                           */
+var BORROW = { nb:{ pl:{ b:'b', d:'d', f:'f', g:'g', j:'j', k:'k', l:'l', m:'m', n:'n', p:'p', s:'s', t:'t', v:'w' } } };
 var S = { key:'', index:{}, store:'sounds.index', bufs:{}, ctx:null };
 
 function clipOf(lang, letter){
@@ -20,9 +26,28 @@ function urlOf(lang, c){
   var v = S.index[lang] && S.index[lang][c];
   return BASE + encodeURIComponent(S.key) + '/' + lang + '/' + encodeURIComponent(c) + '?v=' + v;
 }
-function has(lang, letter){
+/* which recording a letter plays: its own, else the one it borrows */
+function source(lang, letter){
   var c = clipOf(lang, letter);
-  return !!(S.key && S.index[lang] && S.index[lang][c]);
+  if(!S.key) return null;
+  if(S.index[lang] && S.index[lang][c]) return { lang:lang, c:c };
+  var b = BORROW[lang] || {};
+  for(var from in b){
+    var k = b[from][c];
+    if(k && S.index[from] && S.index[from][k]) return { lang:from, c:k, borrowed:true };
+  }
+  return null;
+}
+function has(lang, letter){ return !!source(lang, letter); }
+/* recorded in this language, and borrowed from another */
+function count(lang){
+  var own = Object.keys(S.index[lang] || {}).length, lent = 0, b = BORROW[lang] || {};
+  Object.keys(b).forEach(function(from){
+    Object.keys(b[from]).forEach(function(c){
+      if(!(S.index[lang] && S.index[lang][c]) && S.index[from] && S.index[from][b[from][c]]) lent++;
+    });
+  });
+  return { own:own, borrowed:lent };
 }
 
 /* bytes: memory, then this device's cache, then the network (cached on the way) */
@@ -44,11 +69,13 @@ function bytes(lang, c){
 
 /* the decoded clip, kept in memory */
 function buffer(lang, letter){
-  var c = clipOf(lang, letter), id = lang + ':' + c + ':' + (S.index[lang] && S.index[lang][c]);
+  var src = source(lang, letter);
+  if(!src) return Promise.reject(new Error('not recorded'));
+  var id = src.lang + ':' + src.c + ':' + S.index[src.lang][src.c];
   if(S.bufs[id]) return Promise.resolve(S.bufs[id]);
   var ctx = S.ctx && S.ctx();
   if(!ctx) return Promise.reject(new Error('no audio'));
-  return bytes(lang, c).then(function(ab){
+  return bytes(src.lang, src.c).then(function(ab){
     return new Promise(function(res, rej){
       var p = ctx.decodeAudioData(ab, res, rej);
       if(p && p.then) p.then(res, rej);
@@ -113,5 +140,5 @@ function init(opt){
 }
 
 root.LetterSounds = { init:init, refresh:refresh, has:has, load:load, start:start, clipOf:clipOf,
-                      SAME:SAME, BASE:BASE, CACHE:CACHE, _state:S };
+                      source:source, count:count, SAME:SAME, BORROW:BORROW, BASE:BASE, CACHE:CACHE, _state:S };
 })(typeof window !== 'undefined' ? window : this);

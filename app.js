@@ -3,7 +3,7 @@
 (function () {
 'use strict';
 
-var BUILD = 3;
+var BUILD = 4;
 /* The sync service. The URL is public; the key the parent pastes in is the
    only credential, because there is no login for a four-year-old.        */
 var SYNC_URL = 'https://pisz-sync.pawlo999.workers.dev';
@@ -1395,9 +1395,9 @@ function paintParent(){
   paintSync(); paintChoices(); paintSounds();
 }
 function paintSounds(){
-  var ix = window.LetterSounds._state.index || {}, n = function(l){ return Object.keys(ix[l] || {}).length; };
+  var n = function(l){ return window.LetterSounds.count(l).own; }, lent = window.LetterSounds.count('nb').borrowed;
   $('sndv').textContent = !S.syncKey ? 'needs the sync key below'
-    : (n('pl') || n('nb')) ? n('pl') + ' Polish, ' + n('nb') + ' Norwegian recorded'
+    : (n('pl') || n('nb')) ? n('pl') + ' Polish, ' + n('nb') + ' Norwegian recorded' + (lent ? ', ' + lent + ' more Norwegian from Polish' : '')
     : 'none yet — the voice says the letter names';
 }
 function paintSync(){ var e = $('syncstat'); if(e) e.textContent = S.syncMsg || (S.syncKey ? 'key set' : 'not set'); }

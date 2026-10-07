@@ -21,6 +21,7 @@
       display:flex;align-items:center;justify-content:center;flex:none}
   .row.done .ch{background:#22c55e}
   .row.same .ch{background:#39415a;color:#cfd5e1}
+  .row.borrow .ch{background:#38bdf8}
   .hint{flex:1;font-size:14px;color:#cfd5e1;min-width:0}
   .hint small{display:block;color:#9aa3b2;font-size:12px}
   .btn{width:52px;height:52px;border-radius:50%;border:0;background:#262b38;color:#fff;font-size:20px;flex:none}
@@ -103,9 +104,15 @@
       .catch(function(e){ say('Could not reach the sync service: ' + (e.message || e)); paint(); });
   }
 
+  /* a Norwegian letter with no recording of its own plays the Polish one */
+  function borrowed(c){
+    var b = window.LetterSounds.BORROW[lang] || {};
+    for(var from in b){ var k = b[from][c]; if(k && index[from] && index[from][k]) return { lang:from, c:k }; }
+    return null;
+  }
   function paint(){
     var host = $('list'); host.textContent = '';
-    var done = 0, total = 0;
+    var done = 0, total = 0, lent = 0;
     LIST[lang].forEach(function(e){
       var c = e[0], same = SAME[lang] && SAME[lang][c];
       var row = document.createElement('div'); row.className = 'row' + (same ? ' same' : '');
@@ -116,20 +123,22 @@
         row.appendChild(h); host.appendChild(row); return;
       }
       total++;
-      var recorded = index[lang] && index[lang][c];
+      var recorded = index[lang] && index[lang][c], from = !recorded && borrowed(c);
       if(recorded){ done++; row.classList.add('done'); }
+      else if(from){ lent++; row.classList.add('borrow'); }
       h.textContent = HINT[lang][e[1]].replace('%w', e[2]);
       if(EXTRA[lang][c]){ var sm = document.createElement('small'); sm.textContent = EXTRA[lang][c]; h.appendChild(sm); }
+      if(from){ var sb = document.createElement('small'); sb.textContent = 'now uses your Polish ' + from.c.toUpperCase() + ' — record to replace it'; h.appendChild(sb); }
       row.appendChild(h);
-      var st = document.createElement('div'); st.className = 'st'; st.textContent = recorded ? '✓' : '';
+      var st = document.createElement('div'); st.className = 'st'; st.textContent = recorded ? '✓' : from ? '↺' : '';
       var rec = document.createElement('button'); rec.className = 'btn rec'; rec.textContent = '●'; rec.setAttribute('data-letter', c);
-      var play = document.createElement('button'); play.className = 'btn'; play.textContent = '▶'; play.disabled = !recorded;
+      var play = document.createElement('button'); play.className = 'btn'; play.textContent = '▶'; play.disabled = !recorded && !from;
       rec.addEventListener('click', function(){ record(c, rec, play, st, row); });
       play.addEventListener('click', function(){ playIt(c); });
       row.appendChild(st); row.appendChild(play); row.appendChild(rec);
       host.appendChild(row);
     });
-    $('count').textContent = done + ' / ' + total + ' recorded';
+    $('count').textContent = done + ' / ' + total + ' recorded' + (lent ? ' · ' + lent + ' use the Polish one' : '');
   }
 
   /* the microphone stays open while the page is: no second permission
@@ -164,9 +173,7 @@
             if(!out){ st.textContent = '!'; say('Nothing heard — try again, a little closer.'); return; }
             return upload(c, out.wav).then(function(at){
               (index[lang] = index[lang] || {})[c] = at;
-              st.textContent = '✓'; row.classList.add('done'); play.disabled = false;
-              say(''); playBuffer(out.buffer);
-              var n = Object.keys(index[lang]).length; $('count').textContent = n + ' / ' + document.querySelectorAll('.row:not(.same)').length + ' recorded';
+              say(''); playBuffer(out.buffer); paint();
             });
           })
           .catch(function(e){ st.textContent = '!'; say('Not saved: ' + (e.message || e)); });
@@ -233,7 +240,9 @@
   }
   function playBuffer(b){ var s = ctx().createBufferSource(); s.buffer = b; s.connect(ctx().destination); s.start(); }
   function playIt(c){
-    fetch(BASE + encodeURIComponent(key()) + '/' + lang + '/' + encodeURIComponent(c) + '?v=' + Date.now())
+    var src = index[lang] && index[lang][c] ? { lang:lang, c:c } : borrowed(c);
+    if(!src) return;
+    fetch(BASE + encodeURIComponent(key()) + '/' + src.lang + '/' + encodeURIComponent(src.c) + '?v=' + Date.now())
       .then(function(r){ if(!r.ok) throw new Error('not recorded'); return r.arrayBuffer(); })
       .then(decode).then(playBuffer).catch(function(e){ say(e.message || String(e)); });
   }

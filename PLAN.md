@@ -173,6 +173,13 @@ copy/merge data, change name.
   device for offline. Shared sounds: PL ó = u; NB c = k (its word is cowboy),
   z = s, w = v. No recording, not loaded in 0.7 s, or audio not running: the
   old phrase from the voice — never "jak gęś" alone.
+- He recorded all 31 Polish sounds on 7 Oct and will not record Norwegian
+  (not his language). So a Norwegian consonant that sounds as the Polish one
+  does plays the Polish recording until a Norwegian one exists (b4, his "1a"):
+  b d f g j k l m n p s t, and v from Polish w. Not the vowels — a Norwegian
+  vowel's name is its sound, so the voice already says it — and not h (Polish
+  /x/) or r (his is rolled). record.html marks those rows "now uses your
+  Polish …"; a Norwegian recording replaces it.
 
 ## 8 · Next
 
@@ -192,7 +199,7 @@ copy/merge data, change name.
     node test/engine.test.mjs                 # 64 checks, ~2 min
     node test/worker.test.mjs                 # 25 checks
     PISZ_URL=http://localhost:8791/ node test/e2e.test.mjs   # WebKit + Chromium, ~10 min
-    PISZ_URL=http://localhost:8791/ node test/sounds.test.mjs  # recording + playback, Chromium, 40 checks
+    PISZ_URL=http://localhost:8791/ node test/sounds.test.mjs  # recording + playback, Chromium, 47 checks
 
 WebKit is Playwright's 26.6 build — the engine iPadOS 26 Safari uses —
 running headless without root: its missing libraries were unpacked from

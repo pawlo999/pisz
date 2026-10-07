@@ -104,10 +104,18 @@ console.log('\nthe recording page');
   ok(await page.textContent('#count') === '1 / 31 recorded', 'the count moves', await page.textContent('#count'));
   ok(await page.$eval('.btn.rec[data-letter="g"]', e => !e.previousElementSibling.disabled), '▶ is offered to listen back');
 
+  await put(env, 'pl', 'h', tone(0.4, 300, 0.4)); await put(env, 'pl', 'w', tone(0.4, 300, 0.4));
+  await page.reload(); await sleep(600);
   await page.click('.tab[data-lang="nb"]');
   const nb = await page.$$eval('.row', r => r.map(x => x.querySelector('.ch').textContent + '|' + x.querySelector('.hint').textContent));
   ok(nb.length === 27 && nb.find(r => r[0] === 'C') === 'C|samme lyd som K — trenger ikke opptak', 'Norwegian: C borrows the K of "cowboy"', nb.find(r => r[0] === 'C'));
-  ok(await page.textContent('#count') === '0 / 24 recorded', 'Norwegian has its own 24', await page.textContent('#count'));
+  ok(await page.textContent('#count') === '0 / 24 recorded · 2 use the Polish one', 'Norwegian has its own 24; G and V use the Polish ones meanwhile', await page.textContent('#count'));
+  const g = await page.$eval('.btn.rec[data-letter="g"]', e => ({ cls: e.parentNode.className, hint: e.parentNode.querySelector('.hint').textContent,
+                                                                  st: e.parentNode.querySelector('.st').textContent, play: !e.previousElementSibling.disabled }));
+  ok(/borrow/.test(g.cls) && /now uses your Polish G — record to replace it/.test(g.hint) && g.st === '↺' && g.play,
+     'the Norwegian G row says it plays the Polish G, and ▶ plays it', JSON.stringify(g));
+  const h = await page.$eval('.btn.rec[data-letter="h"]', e => e.parentNode.className);
+  ok(!/borrow/.test(h), 'H never borrows (Polish H is another sound)', h);
 
   await page.reload(); await sleep(600);
   ok(await page.$eval('.btn.rec[data-letter="g"]', e => e.parentNode.classList.contains('done')), 'after a reload, G shows as recorded');
@@ -142,6 +150,9 @@ console.log('\nPisz plays the recording, then says the word');
   const env = { STORE: fakeKV() };
   await put(env, 'pl', 's', cat(tone(0.5, 300, 0.4)));
   await put(env, 'pl', 't', cat(tone(0.2, 300, 0.4)));
+  await put(env, 'pl', 'w', cat(tone(0.35, 300, 0.4)));
+  await put(env, 'pl', 'h', cat(tone(0.45, 300, 0.4)));
+  await put(env, 'pl', 'k', cat(tone(0.25, 300, 0.4)));
   await put(env, 'nb', 'k', cat(tone(0.3, 300, 0.4)));
   await put(env, 'nb', 'ø', cat(tone(0.4, 300, 0.4)));
   let failT = true;
@@ -150,8 +161,8 @@ console.log('\nPisz plays the recording, then says the word');
   await page.addInitScript(SPY);
   await page.reload(); await sleep(800);
   await until(page, () => window.LetterSounds.has('pl', 'S'), null, 4000, 'index');
-  const ph = await page.evaluate(() => [window.__pisz.letterPhrase('S'), window.__pisz.plainPhrase('S'), window.__pisz.letterPhrase('K')]);
-  ok(ph[0] === '⁣S⁣' && ph[1] === 's jak sowa' && ph[2] === 'k jak kot', 'a recorded letter is marked; one not recorded is said as before', JSON.stringify(ph));
+  const ph = await page.evaluate(() => [window.__pisz.letterPhrase('S'), window.__pisz.plainPhrase('S'), window.__pisz.letterPhrase('M')]);
+  ok(ph[0] === '⁣S⁣' && ph[1] === 's jak sowa' && ph[2] === 'm jak mama', 'a recorded letter is marked; one not recorded is said as before', JSON.stringify(ph));
 
   await page.evaluate(() => { window.__pisz.say('raz dwa trzy cztery'); window.__pisz.say(window.__pisz.letterPhrase('S')); });
   await until(page, () => window.__saidAt.some(s => s.text === ' jak sowa'), null, 6000, 'jak sowa');
@@ -212,12 +223,27 @@ console.log('\nPisz plays the recording, then says the word');
   r = await page.evaluate(() => new Promise(res => { const a = window.__pisz; a.S.lang = 'nb'; const said = window.__saidAt.length, n = window.__clips.length;
     a.say(a.letterPhrase('C'), null, true);
     setTimeout(() => { a.S.lang = 'pl'; res({ clip: window.__clips.slice(n).map(c => +c.d.toFixed(2)), said: window.__saidAt.slice(said).map(s => s.text) }); }, 1800); }));
-  ok(r.clip.join() === '0.3' && r.said.join('|') === ' som i cowboy', '"[k] som i cowboy"', JSON.stringify(r));
+  ok(r.clip.join() === '0.3' && r.said.join('|') === ' som i cowboy', '"[k] som i cowboy" — the Norwegian K, though a Polish K exists too', JSON.stringify(r));
+
+  /* Norwegian with no recording of its own: the matching Polish consonant */
+  const nbSay = id => page.evaluate(id => new Promise(res => { const a = window.__pisz; a.S.lang = 'nb'; const said = window.__saidAt.length, n = window.__clips.length;
+    a.say(a.letterPhrase(id), null, true);
+    setTimeout(() => { a.S.lang = 'pl'; res({ clip: window.__clips.slice(n).map(c => +c.d.toFixed(2)).join(), said: window.__saidAt.slice(said).map(s => s.text).join('|') }); }, 1500); }), id);
+  r = await nbSay('S');
+  ok(r.clip === '0.5' && r.said === ' som i sol', 'NB S plays the Polish S: "[s] som i sol"', JSON.stringify(r));
+  r = await nbSay('V');
+  ok(r.clip === '0.35' && r.said === ' som i vann', 'NB V plays the Polish W, which is the v sound', JSON.stringify(r));
+  r = await nbSay('W');
+  ok(r.clip === '0.35' && r.said === ' som i wienerpølse', 'NB W (= v) too', JSON.stringify(r));
+  r = await nbSay('H');
+  ok(r.clip === '' && r.said === 'h som i hus', 'NB H is said as before: the Polish H is another sound', JSON.stringify(r));
+  r = await nbSay('E');
+  ok(r.clip === '' && r.said === 'e som i egg', 'NB vowels are said as before: their name is their sound', JSON.stringify(r));
 
   /* the parent panel says what is recorded */
   await page.evaluate(() => window.__pisz.openParent()); await sleep(400);
   const sv = await page.textContent('#sndv');
-  ok(sv === '2 Polish, 2 Norwegian recorded', 'the parent panel counts the recordings', sv);
+  ok(sv === '5 Polish, 2 Norwegian recorded, 3 more Norwegian from Polish', 'the parent panel counts the recordings, and the borrowed ones', sv);
   ok(await page.getAttribute('#recbtn', 'href') === 'record.html', 'and links to the recording page');
 
   /* offline: the index and the recordings were kept on the device */

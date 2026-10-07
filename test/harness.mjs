@@ -29,19 +29,36 @@ export async function open(browser, opts = {}) {
       if (log) localStorage.setItem('pisz.child.log', JSON.stringify(log));
       sessionStorage.setItem('seeded', '1');
     }
-    window.__said = [];
+    /* a voice that takes time to speak, queues like the real one, and
+       remembers anything cut off mid-sentence or dropped before it began */
+    window.__said = []; window.__cuts = []; window.__dropped = [];
     window.SpeechSynthesisUtterance = function (t) { this.text = t; };
+    const V = { cur: null, q: [], t: null };
+    const dur = u => 250 + String(u.text).length * 60 / (u.rate || 0.7);   // ~86 ms a character at 0.7
+    const next = () => {
+      V.cur = V.q.shift() || null;
+      if (!V.cur) return;
+      V.t = setTimeout(() => { const u = V.cur; V.cur = null; u.onend && u.onend(); next(); }, dur(V.cur));
+    };
     Object.defineProperty(window, 'speechSynthesis', {
       configurable: true,
       value: {
         getVoices: () => [{ name: 'PL', lang: 'pl-PL', localService: true }, { name: 'NB', lang: 'nb-NO', localService: true }],
-        speak: u => window.__said.push(u.text), cancel: () => {}, onvoiceschanged: null,
+        get speaking() { return !!V.cur; }, get pending() { return V.q.length > 0; },
+        speak: u => { window.__said.push(u.text); V.q.push(u); if (!V.cur) next(); },
+        cancel: () => {
+          if (V.cur) window.__cuts.push(V.cur.text);
+          V.q.forEach(u => window.__dropped.push(u.text));
+          V.q = []; clearTimeout(V.t); V.cur = null;
+        },
+        onvoiceschanged: null,
       },
     });
   }, { seed: opts.seed || null, log: opts.log || null });
   await page.goto(BASE + 'index.html' + (opts.query === undefined ? '?dev=probe&c=0' : opts.query));
   await page.waitForTimeout(300);
-  return { page, ctx, errors, said: () => page.evaluate(() => window.__said.slice()) };
+  return { page, ctx, errors, said: () => page.evaluate(() => window.__said.slice()),
+           speech: () => page.evaluate(() => ({ cuts: window.__cuts.slice(), dropped: window.__dropped.slice() })) };
 }
 
 export const sleep = ms => new Promise(r => setTimeout(r, ms));

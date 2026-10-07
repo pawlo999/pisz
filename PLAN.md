@@ -104,8 +104,10 @@ not, so they can be re-judged against new thresholds offline.
 
 ## 5 · What the parent sees
 
-On the iPad (long-press the gear), and on any phone at `parent.html` with
-the sync key:
+On the iPad (long-press the gear), and on any phone at `parent.html` — **one
+dashboard for both apps** (his call, 7 Oct): the same sync key opens Litery's
+record and Pisz's, with "five minutes together today" on top (the letters she
+is on now, and to say the sound, not the name):
 
 - days played, minutes, sittings, % right
 - every shape and letter as a colour grid by level
@@ -150,6 +152,20 @@ copy/merge data, change name.
   Accessibility › Guided Access, triple-click the top button.)
 - Do Litery and Pisz on the home screen share storage? (irrelevant to
   correctness — keys are prefixed — but worth knowing)
+
+## 7b · Words and names (his calls, 6–7 Oct)
+
+- Shapes are called what they are: kreska w dół, kreska w bok, kółko, skośna
+  kreska w lewo / w prawo, kwadrat, zygzak (NO: strek ned, strek bortover, ring,
+  skrå strek mot venstre / høyre, firkant, sikksakk). A picture only where it looks
+  like the shape: góra ⛰️, tęcza 🌈, fale 🌊.
+- One rule for Polish letters: the letter starts its word → "s jak sowa";
+  otherwise "ą jak w słowie wąż" (never a declined form: "w wężu" loses the ą).
+- Picture words start with one plain sound: sowa, gęś, pomidor (not słoń,
+  gwiazda, pies).
+- `voices.html` lets him compare, per letter, the name the iPad says now, the
+  iPad voice trying the sound, and a free recording (`sounds/`, CREDITS.md);
+  his picks come back as a `k:'V'` row through the sync service.
 
 ## 8 · Next
 

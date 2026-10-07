@@ -74,7 +74,7 @@ async function suite(engine) {
   /* ---------------------------------------------------------------- */
   console.log('\na whole first sitting');
   {
-    const { page, errors, said } = await open(b, { seed: { name: 'ADA', lang: 'pl' } });
+    const { page, errors, said, speech } = await open(b, { seed: { name: 'ADA', lang: 'pl' } });
     await enter(page);
     const items = (await state(page)).items;
     ok(items.join(' ') === '|:RT -:RT o:RT', 'the first sitting is the three opening strokes, road then dots', items.join(' '));
@@ -89,12 +89,18 @@ async function suite(engine) {
     ok(['|', '-', 'o'].every(g => M[g].lv === 2), 'each shape is at "traced the dots"');
     const sp = speechOk(await said());
     ok(sp.good, 'the voice never got a bare letter, an unsafe letter or a capital', sp.why);
-    ok((await said()).includes('narysuj gąsienicę'), 'Polish instructions are grammatical ("narysuj gąsienicę")');
-    const words = await page.evaluate(() => { const a = window.__pisz; return [a.letterPhrase('Ć'), a.letterPhrase('Ź'), a.letterPhrase('Y'), a.prompt('Y', 'M'), a.prompt('Ń', 'M')]; });
-    ok(words.join('|') === 'ć jak ćma|ź jak źrebak|y jak w motylu|Napisz y jak w motylu|Napisz literkę, której brakuje: koń',
-       'his words: ć jak ćma, ź jak źrebak, y jak w motylu', words.join('|'));
+    ok((await said()).includes('narysuj kreskę w bok'), 'shapes are called what they are, in the accusative ("narysuj kreskę w bok")');
+    const shapes = await page.evaluate(() => { const a = window.__pisz; return ['/', '\\', 'o', '#'].map(g => a.prompt(g, 'R')); });
+    ok(shapes.join('|') === 'Narysuj skośną kreskę w lewo|Narysuj skośną kreskę w prawo|Narysuj kółko|Narysuj kwadrat',
+       'the two slants have different names; kółko, kwadrat', shapes.join('|'));
+    const words = await page.evaluate(() => { const a = window.__pisz;
+      return ['Ć', 'Ź', 'Ó', 'S', 'Ą', 'Ę', 'Ń', 'Y'].map(g => a.letterPhrase(g)).concat([a.prompt('Y', 'M')]); });
+    ok(words.join('|') === 'ć jak ćma|ź jak źrebak|ó jak ósemka|s jak sowa|ą jak w słowie wąż|ę jak w słowie ręka|ń jak w słowie koń|y jak w słowie motyl|Napisz y jak w słowie motyl',
+       'one rule: "x jak słowo" when the word starts with it, "x jak w słowie …" when it cannot', words.join('|'));
     const nb = await page.evaluate(() => { const a = window.__pisz; a.S.lang = 'nb'; const r = [a.letterPhrase('Æ'), a.prompt('Æ', 'M')]; a.S.lang = 'pl'; return r; });
     ok(nb.join('|') === 'æ som i ærlig|Skriv æ som i ærlig', 'and æ som i ærlig', nb.join('|'));
+    const sp1 = await speech();
+    ok(!sp1.cuts.length && !sp1.dropped.length, 'a whole first sitting: no sentence cut off', JSON.stringify(sp1));
     ok(!errors.length, 'no errors', errors.join(' | '));
 
     await page.reload(); await sleep(400);
@@ -106,7 +112,7 @@ async function suite(engine) {
   /* ---------------------------------------------------------------- */
   console.log('\na new letter: watch, road, dots, copy — and a miss on the way');
   {
-    const { page, errors, said } = await open(b, { seed: { name: 'ADA', lang: 'pl' }, log: seedLog(SHAPES2) });
+    const { page, errors, said, speech } = await open(b, { seed: { name: 'ADA', lang: 'pl' }, log: seedLog(SHAPES2) });
     await enter(page);
     const items = (await state(page)).items;
     ok(items.some(s => s === 'D:RTC'), 'her name\'s letter D comes first among the new ones, as road → dots → copy', items.join(' '));
@@ -127,6 +133,9 @@ async function suite(engine) {
     ok(r.map(x => x.st + x.ok).join(' ') === 'R1 T1 C0 C1', 'logged: road, dots, a missed copy, a copy', JSON.stringify(r));
     ok(r[3].h === 1 && r[3].s && r[2].s, 'the copy after help is marked as helped; both drawings are kept');
     ok(await page.evaluate(() => window.__pisz.M.D.lv) === 3, 'D is now at "copied"');
+    const sp = await speech();
+    ok(!sp.cuts.length && !sp.dropped.length, 'nothing the app said was cut off or dropped — the voice finishes before the game moves on',
+       JSON.stringify(sp));
     ok(!errors.length, 'no errors', errors.join(' | '));
     await page.context().close();
   }
@@ -494,13 +503,20 @@ async function suite(engine) {
   }
 
   /* ---------------------------------------------------------------- */
-  console.log('\nthe parent page on his phone');
+  console.log('\none parent dashboard for both apps, on his phone');
   {
     const env = { STORE: fakeKV() };
     const KEY = 'family-key-0123456789';
     const log = seedLog([...SHAPES2, ['L', 5], ['T', 3]], 4);
     log.push({ t: Date.now() - DAY, l: 'pl', g: 'L', st: 'M', ok: 1, s: P.pack(childify(P.G.L, { seed: 2 })) });
     await worker.fetch(new Request(SYNC + '/s/' + KEY, { method: 'POST', body: JSON.stringify({ log, name: 'ADA', settings: { size: 5 } }) }), env);
+    // what Litery's service answers: its log, and the mastery it rebuilt
+    const t0 = Date.now() - 2 * DAY;
+    const litery = { name: 'ADA', prizes: ['⭐️', '🚀'], settings: {},
+      log: [{ t: t0, l: 'pl', k: 'L', x: 's', w: 0, ms: 2100 }, { t: t0 + 1, l: 'pl', k: 'L', x: 'k', w: 1, ms: 4100 },
+            { t: t0 + 2, l: 'pl', k: 'L', x: 'k', w: 0, ms: 3000 }, { t: t0 + 3, l: 'pl', k: 'P', x: '⭐️' }],
+      mastery: { 'pl:L:s': { n: 46, ft: 30, box: 2, last: t0, ms: [2100] }, 'pl:L:k': { n: 43, ft: 25, box: 3, last: t0 + 2, ms: [3000] },
+                 'pl:L:m': { n: 39, ft: 35, box: 5, last: t0 - DAY, ms: [1800] } } };
     const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
     const page = await ctx.newPage();
     const errors = []; page.on('pageerror', e => errors.push(e.message));
@@ -508,14 +524,29 @@ async function suite(engine) {
       const res = await worker.fetch(new Request(route.request().url(), { method: route.request().method() }), env);
       route.fulfill({ status: res.status, headers: Object.fromEntries(res.headers), body: await res.text() });
     });
+    let literyKey = '';
+    await page.route('https://litery-sync.pawlo999.workers.dev/**', route => {
+      literyKey = route.request().url().split('/s/')[1];
+      route.fulfill({ status: 200, headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }, body: JSON.stringify(litery) });
+    });
     await page.goto(BASE_URL + 'parent.html');
-    await page.fill('#key', KEY); await page.click('#go'); await sleep(800);
-    ok((await page.textContent('#title')) === 'How Ada is doing', 'it loads her record by the sync key');
-    ok(await page.evaluate(() => document.querySelectorAll('#rep .smp canvas').length) >= 1 && /Her next sitting/.test(await page.textContent('#rep')),
-       'with her handwriting and what comes next');
-    await page.reload(); await sleep(800);
-    ok((await page.textContent('#title')) === 'How Ada is doing', 'the key is remembered on that phone');
+    await page.fill('#key', KEY); await page.click('#go'); await sleep(900);
+    ok((await page.textContent('#title')) === 'How Ada is doing', 'one key loads her record');
+    ok(literyKey === KEY, 'the same key asks Litery\'s service too');
+    ok(/letters known/.test(await page.textContent('#litrep')) && (await page.evaluate(() => document.querySelectorAll('#litrep table tr').length)) >= 4,
+       'Litery: letters by box, first try, time, last 10 days');
+    const tog = await page.evaluate(() => [...document.querySelectorAll('#tletters span')].map(s => s.textContent));
+    ok(await page.isVisible('#together') && tog[0] === 'K' && tog.includes('S') && !tog.includes('M'),
+       'five minutes together: the letters she is on now (K, S), not the ones she knows (M)', JSON.stringify(tog));
+    ok(/sound, not the name/.test(await page.textContent('#ttips')), 'with what to do: the sound, not the name');
+    await page.click('#tab-pisz'); await sleep(200);
+    ok(await page.isVisible('#rep') && await page.evaluate(() => document.querySelectorAll('#rep .smp canvas').length) >= 1 &&
+       /Her next sitting/.test(await page.textContent('#rep')), 'Pisz tab: her handwriting and what comes next');
+    await page.reload(); await sleep(900);
+    ok((await page.textContent('#title')) === 'How Ada is doing' && await page.isVisible('#rep'), 'the key and the tab are remembered on that phone');
     await page.screenshot({ path: `test/out/${engine}-parent-phone.png`, fullPage: true });
+    await page.click('#tab-litery'); await sleep(200);
+    await page.screenshot({ path: `test/out/${engine}-parent-phone-litery.png`, fullPage: true });
     ok(!errors.length, 'no errors', errors.join(' | '));
     await ctx.close();
   }
@@ -535,6 +566,28 @@ async function suite(engine) {
     ok((await page.textContent('#esub')).includes('kredką na kartce'), 'the third sitting ends with "napisz … kredką na kartce"', await page.textContent('#esub'));
     ok(!errors.length, 'no errors', errors.join(' | '));
     await page.context().close();
+  }
+
+  /* ---------------------------------------------------------------- */
+  if (engine === 'chromium') {        // this WebKit build has no media plugins: audio crashes it
+    console.log('\nthe letter-sound test page');
+    const ctx = await b.newContext({ viewport: IPAD, serviceWorkers: 'block' });
+    const page = await ctx.newPage();
+    const errors = []; page.on('pageerror', e => errors.push(e.message));
+    let posted = null;
+    await page.route(SYNC + '/**', r => { posted = r.request().postData(); r.fulfill({ status: 200, headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }, body: '{"log":[]}' }); });
+    await page.goto(BASE_URL + 'voices.html'); await sleep(800);
+    const n = await page.evaluate(() => [document.querySelectorAll('#pl .row').length, document.querySelectorAll('#nb .row').length, document.querySelectorAll('#phrases .row').length]);
+    ok(n.join() === '31,23,15', 'every Polish and Norwegian letter, and the phrases to check', n.join());
+    const dur = await page.evaluate(async () => Promise.all(['sounds/pl/sz.wav', 'sounds/pl/ą.wav', 'sounds/nb/ø.wav'].map(f => new Promise(res => {
+      const a = new Audio(); a.onloadedmetadata = () => res(a.duration); a.onerror = () => res(-1); a.src = f; setTimeout(() => res(-2), 4000); }))));
+    ok(dur.every(d => d > 0.3 && d < 0.7), 'recordings load, including file names with ą and ø', JSON.stringify(dur));
+    await page.evaluate(() => document.querySelector('#pl .row').querySelectorAll('.pick')[2].click());
+    await page.fill('#key', 'family-key-0123456789'); await page.click('#send'); await sleep(400);
+    const row = posted && JSON.parse(posted).log[0];
+    ok(row && row.k === 'V' && JSON.parse(row.x)['pl:a'] === 'rec0', 'his pick reaches the sync service as one row', posted);
+    ok(!errors.length, 'no errors', errors.join(' | '));
+    await ctx.close();
   }
 
   /* ---------------------------------------------------------------- */

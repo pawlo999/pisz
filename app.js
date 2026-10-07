@@ -12,11 +12,14 @@ var P = window.Pisz, R = window.PiszReport, G = P.G;
 /* ============ content ============================================== */
 /* The word a letter "lives in", shown with its picture and spoken as
    "s jak słoń". Same rule as Litery: never a bare letter to the speaker. */
+/* Each word starts with ONE plain sound: a cluster (sł-, gw-) or a softened
+   consonant (pi-) makes the first sound hard to hear at four (research,
+   7 Oct) — so sowa, gęś and pomidor, not słoń, gwiazda and pies.          */
 var WORD = {
   pl:{ A:['auto','🚗'], B:['but','👟'], C:['cebula','🧅'], D:['dom','🏠'], E:['ekran','🖥️'],
-       F:['foka','🦭'], G:['gwiazda','⭐️'], H:['hipopotam','🦛'], I:['indyk','🦃'], J:['jabłko','🍎'],
+       F:['foka','🦭'], G:['gęś','🪿'], H:['hipopotam','🦛'], I:['indyk','🦃'], J:['jabłko','🍎'],
        K:['kot','🐱'], L:['lody','🍦'], M:['mama','👩'], N:['nos','👃'], O:['oko','👁️'],
-       P:['pies','🐶'], R:['ryba','🐟'], S:['słoń','🐘'], T:['tort','🎂'], U:['ucho','👂'],
+       P:['pomidor','🍅'], R:['ryba','🐟'], S:['sowa','🦉'], T:['tort','🎂'], U:['ucho','👂'],
        W:['woda','💧'], Y:['motyl','🦋'], Z:['zebra','🦓'],
        /* ćma: there is no moth emoji, the butterfly stands in for it */
        'Ą':['wąż','🐍'], 'Ć':['ćma','🦋'], 'Ę':['ręka','✋'], 'Ł':['łódka','⛵'], 'Ń':['koń','🐴'],
@@ -31,24 +34,33 @@ var WORD = {
 };
 /* letters the voice is not trusted to say on their own (Litery: iOS is
    silent or wrong on some) — these are only ever heard inside their word */
-var WORD_ONLY = { pl:'ĄĘŃÓ', nb:'ØÅY' };
-/* letters whose word does not start with them, said his way (6 Oct) */
-var PHRASE = { pl:{ Y:'y jak w motylu' }, nb:{} };
+var WORD_ONLY = { pl:'', nb:'ØÅY' };
+/* One rule for Polish (his call, 7 Oct): a letter that starts its word is
+   "s jak sowa"; one that cannot start a word is "ą jak w słowie wąż".
+   Never "jak w wężu" or "jak w koniu": the declined word loses the letter. */
+var INSIDE = { pl:' jak w słowie ', nb:' som i ' };
 var NUM = {
   pl:['zero','jeden','dwa','trzy','cztery','pięć','sześć','siedem','osiem','dziewięć'],
   nb:['null','en','to','tre','fire','fem','seks','sju','åtte','ni']
 };
 var KEYCAP = ['0️⃣','1️⃣','2️⃣','3️⃣','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣','9️⃣'];
-/* [name, picture, what the instruction says — Polish needs the accusative] */
+/* [name, picture, what the instruction says — Polish needs the accusative].
+   A shape is called what it is. A picture is kept only where it looks like
+   the shape (mountain, rainbow, waves); "deszcz" for a lone line meant
+   nothing without a cloud on screen (his call, 7 Oct).                   */
 var SHAPE = {
-  pl:{ rain:['deszcz','🌧️','deszcz'], road:['gąsienica','🐛','gąsienicę'], ball:['piłka','⚽','piłkę'],
-       plus:['plusik','➕','plusik'], slide:['zjeżdżalnia','🛝','zjeżdżalnię'], box:['prezent','🎁','prezent'],
-       x:['krzyżyk','❌','krzyżyk'], mountain:['góra','⛰️','górę'], zigzag:['błyskawica','⚡','błyskawicę'],
-       rainbow:['tęcza','🌈','tęczę'], wave:['fale','🌊','fale'] },
-  nb:{ rain:['regn','🌧️','regn'], road:['larve','🐛','en larve'], ball:['ball','⚽','en ball'],
-       plus:['pluss','➕','et pluss'], slide:['sklie','🛝','en sklie'], box:['gave','🎁','en gave'],
-       x:['kryss','❌','et kryss'], mountain:['fjell','⛰️','et fjell'], zigzag:['lyn','⚡','et lyn'],
-       rainbow:['regnbue','🌈','en regnbue'], wave:['bølger','🌊','bølger'] }
+  pl:{ down:['kreska w dół','⬇️','kreskę w dół'], across:['kreska w bok','➡️','kreskę w bok'],
+       ring:['kółko','⭕','kółko'], plus:['plusik','➕','plusik'],
+       slantL:['skośna kreska w lewo','↙️','skośną kreskę w lewo'],
+       slantR:['skośna kreska w prawo','↘️','skośną kreskę w prawo'],
+       box:['kwadrat','🟪','kwadrat'], x:['krzyżyk','❌','krzyżyk'], mountain:['góra','⛰️','górę'],
+       zigzag:['zygzak','⚡','zygzak'], rainbow:['tęcza','🌈','tęczę'], wave:['fale','🌊','fale'] },
+  nb:{ down:['strek ned','⬇️','en strek ned'], across:['strek bortover','➡️','en strek bortover'],
+       ring:['ring','⭕','en ring'], plus:['pluss','➕','et pluss'],
+       slantL:['skrå strek mot venstre','↙️','en skrå strek mot venstre'],
+       slantR:['skrå strek mot høyre','↘️','en skrå strek mot høyre'],
+       box:['firkant','🟪','en firkant'], x:['kryss','❌','et kryss'], mountain:['fjell','⛰️','et fjell'],
+       zigzag:['sikksakk','⚡','en sikksakk'], rainbow:['regnbue','🌈','en regnbue'], wave:['bølger','🌊','bølger'] }
 };
 var LINK = { pl:' jak ', nb:' som i ' };
 var T_ = {
@@ -219,17 +231,48 @@ if('speechSynthesis' in window){
   speechSynthesis.onvoiceschanged = findVoices;
   setTimeout(findVoices, 500); setTimeout(findVoices, 1500);
 }
-/* everything handed to the speaker is lowercase — iOS announces capitals */
-function say(text, rate){
+/* The voice is a queue, not an interrupt. Cancelling before every new
+   sentence (Litery's way) cut 22 of the 37 sentences of one sitting: the
+   next instruction arrived before the last had finished — "d jak dom.
+   patrz!" was cut by the first stroke's "w dół". Now a sentence waits its
+   turn and the game waits for the voice before it moves on. Only her own
+   taps and leaving a screen interrupt.
+   Everything handed to the speaker is lowercase — iOS announces capitals. */
+var VOX = { until:0, last:'', at:0 };
+function speakMs(text, rate){ return 300 + String(text).length * 62 / (rate || S.rate || 0.7); }
+function say(text, rate, interrupt){
   if(!('speechSynthesis' in window) || !text) return;
   try{
-    speechSynthesis.cancel();
+    var now = Date.now();
+    if(interrupt){ speechSynthesis.cancel(); VOX.until = now; }
+    /* the same sentence already waiting or playing: once is enough */
+    else if(text === VOX.last && VOX.until > now) return;
     var u = new SpeechSynthesisUtterance(String(text).toLowerCase());
     var v = VOICE[S.lang];
     if(v){ u.voice = v; u.lang = v.lang; }
     u.rate = rate || S.rate;
     speechSynthesis.speak(u);
+    VOX.until = Math.max(VOX.until, now) + speakMs(text, u.rate);
+    VOX.last = text; VOX.at = now;
   }catch(e){}
+}
+function hush(){ try{ speechSynthesis.cancel(); }catch(e){} VOX.until = 0; VOX.last = ''; }
+function voiceBusy(){
+  if(Date.now() - VOX.at < 250) return true;           /* the engine may not report it yet */
+  try{
+    if(typeof speechSynthesis.speaking === 'boolean') return speechSynthesis.speaking || speechSynthesis.pending;
+  }catch(e){}
+  return Date.now() < VOX.until;
+}
+/* cb once the voice has finished: asked of the engine, never more than
+   4 s past its own estimate — an engine stuck "speaking" must not stop
+   the game                                                              */
+function whenQuiet(cb, min){
+  var start = Date.now(), cap = Math.max(0, VOX.until - start) + 4000 + (min || 0);
+  setTimeout(function check(){
+    if(voiceBusy() && Date.now() - start < cap){ setTimeout(check, 100); return; }
+    cb();
+  }, min || 0);
 }
 function nm(t){ return String(t).split('%s').join(S.name ? cap(S.name) : ''); }
 function cap(s){ s = String(s).toLowerCase(); return s.charAt(0).toUpperCase() + s.slice(1); }
@@ -330,9 +373,9 @@ function letterPhrase(id){
   var g = G[id], w = wordOf(id)[0];
   if(g.kind === 'digit') return w;
   if(g.kind === 'shape') return w;
-  if(PHRASE[S.lang][id]) return PHRASE[S.lang][id];
   if(wordOnly(id)) return w;
-  return id.toLowerCase() + LINK[S.lang] + w;
+  var c = id.toLowerCase();
+  return c + (w.charAt(0) === c ? LINK[S.lang] : INSIDE[S.lang]) + w;
 }
 function prompt(id, st){
   var g = G[id], t = tx();
@@ -583,7 +626,7 @@ function paintPath(){
     var c = el('canvas'); b.appendChild(c); host.appendChild(b);
     b.addEventListener('click', function(){
       unlock();
-      if(SES.done[i]){ say(it.name ? nm('%s') : letterPhrase(it.g)); return; }
+      if(SES.done[i]){ say(it.name ? nm('%s') : letterPhrase(it.g), null, true); return; }
       runItem(i);
     });
     requestAnimationFrame(function(){
@@ -632,9 +675,9 @@ function paintWord(id, st){
 $('word').addEventListener('click', function(){
   unlock();
   if(!RUN) return;
-  if(RUN.item.name){ say(nm('%s')); return; }
+  if(RUN.item.name){ say(nm('%s'), null, true); return; }
   var st = STEP && STEP.st;
-  say(st === 'M' ? prompt(RUN.item.g, 'M') : letterPhrase(RUN.item.g));
+  say(st === 'M' ? prompt(RUN.item.g, 'M') : letterPhrase(RUN.item.g), null, true);
 });
 
 function paintDots(){
@@ -667,14 +710,14 @@ function startStep(){
     var intro = G[id].kind === 'shape' ? prompt(id, st)
               : (first ? letterPhrase(id) + '. ' : '') + tx().watch;
     say(intro);
-    setTimeout(function(){
+    whenQuiet(function(){
       if(STEP !== me) return;
       demo(id, st === 'C' ? 'model' : 'pad', function(){
         if(STEP !== me) return;
         say(st === 'R' ? tx().turn : st === 'T' ? tx().dots : tx().copy);
         me.ready = true;
       });
-    }, Math.min(2600, 450 + intro.length * 60));
+    }, 250);
   } else {
     STEP.ready = true;
     say(st === 'M' ? prompt(id, 'M') : st === 'C' ? tx().copy : st === 'T' ? tx().dots : tx().turn);
@@ -695,7 +738,8 @@ function stepDone(ok, extra){
 
 function nextStep(){
   RUN.si++;
-  if(RUN.si < RUN.steps.length){ setTimeout(startStep, 900); return; }
+  var cur = RUN;
+  if(RUN.si < RUN.steps.length){ whenQuiet(function(){ if(RUN === cur) startStep(); }, 700); return; }
   itemDone();
 }
 
@@ -711,12 +755,12 @@ function itemDone(){
   }
   confetti();
   var cur = RUN;
-  setTimeout(function(){
+  whenQuiet(function(){
     if(RUN !== cur || current() !== 'write') return;
     STEP = null; RUN = null;
     if(Object.keys(SES.done).length >= SES.items.length) endSession();
     else { paintPath(); show('path'); }
-  }, 2100);
+  }, 1900);
 }
 
 /* ---- tracing: road or dots ---------------------------------------- */
@@ -897,7 +941,7 @@ function freeStep(id, st, opt){
     }
     say(mirror ? tx().mirror : tx().look);
     me.overlay = true; paintGuide();
-    setTimeout(function(){
+    whenQuiet(function(){
       if(STEP !== me) return;
       demo(id, 'pad', function(){
         if(STEP !== me) return;
@@ -906,7 +950,7 @@ function freeStep(id, st, opt){
         me.ready = true; me.t0 = Date.now();
         say(tx().again);
       });
-    }, mirror ? 2600 : 1200);
+    }, 600);
   }
   me.clearInk = function(){ me.strokes = []; clearTimeout(me.judgeT); clearTimeout(me.idleT); paintInk(); };
   return me;
@@ -951,6 +995,7 @@ function skipDemo(){
   if(!DEMO_ON || performance.now() - DEMO_ON.t0 < 1500) return false;
   var d = DEMO_ON;
   cancelDemo();
+  hush();          /* she is writing now: the rest of the guide's words can go */
   if(d.where === 'model' && STEP && STEP.g) paintModel(STEP.g);
   d.done && d.done();
   return true;
@@ -962,7 +1007,7 @@ function demo(id, where, done){
   (function next(){
     if(ticket !== DEMO) return;
     if(!STEP || i >= g.strokes.length){ DEMO_ON = null; if(where === 'pad') setTimeout(function(){ clear('fx'); }, 250); else if(STEP) paintModel(g); done && done(); return; }
-    demoStroke(g, i, where, function(){ i++; setTimeout(next, 260); }, true);
+    demoStroke(g, i, where, function(){ i++; whenQuiet(next, 260); }, true);
   })();
 }
 function demoStroke(g, i, where, done, keep){
@@ -1047,7 +1092,7 @@ function startName(){
       parts[i] = packed; i++;
       tone([660, 880]);
       paintStrip();
-      setTimeout(one, 700);
+      whenQuiet(one, 600);
     } });
     STEP.st = 'N'; STEP.t0 = Date.now();
     $('clear').classList.remove('hide');
@@ -1073,7 +1118,7 @@ $('wback').addEventListener('click', function(){
   unlock();
   if(STEP){ clearTimeout(STEP.idleT); clearTimeout(STEP.judgeT); }
   FX = null; STEP = null; RUN = null; humStop();
-  try{ speechSynthesis.cancel(); }catch(e){}
+  hush();
   paintPath(); show('path');
 });
 
@@ -1109,7 +1154,7 @@ function endSession(){
 }
 $('again').addEventListener('click', function(){
   unlock();
-  if($('again').dataset.night){ say(tx().night); return; }
+  if($('again').dataset.night){ say(tx().night, null, true); return; }
   startSession();
 });
 $('endbook').addEventListener('click', function(){ unlock(); openBook('end'); });
@@ -1152,7 +1197,7 @@ function openDetail(id, smp){
   var w = wordOf(id);
   $('detailcap').textContent = (w[1] || '') + ' ' + (G[id].kind === 'letter' ? (w[0] || '').toUpperCase() : w[0] || '');
   $('detail').classList.add('on');
-  say(letterPhrase(id));
+  say(letterPhrase(id), null, true);
 }
 $('detail').addEventListener('click', function(){ $('detail').classList.remove('on'); });
 $('bookback').addEventListener('click', function(){ unlock(); show(bookFrom === 'end' ? 'end' : 'path'); });
@@ -1166,7 +1211,7 @@ function requestWake(){
 }
 function releaseWake(){ try{ if(WAKE) WAKE.release(); }catch(e){} WAKE = null; }
 document.addEventListener('visibilitychange', function(){
-  if(document.hidden){ humStop(); try{ speechSynthesis.cancel(); }catch(e){} IN.id = null; }
+  if(document.hidden){ humStop(); hush(); IN.id = null; }
   else if(current() === 'write') requestWake();
 });
 window.addEventListener('resize', function(){ if(current() === 'write' && STEP && STEP.relayout){ lastRect = ''; setTimeout(layoutIfMoved, 60); } });
@@ -1177,7 +1222,8 @@ window.addEventListener('resize', function(){ if(current() === 'write' && STEP &
    writable after 9 s whatever happens, and any error is written into the
    log, where it syncs to the parent report.                             */
 /* counts how long the pad has refused ink without a break. the longest
-   honest wait — a miss, then the guide redrawing Æ — is about 8 s       */
+   honest wait — the intro, then the guide drawing Æ and saying each of
+   its five strokes, waiting for the voice each time — is about 12 s     */
 var STUCK = { step:null, since:0 };
 function armWatchdog(step){ STUCK.step = step; STUCK.since = 0; }
 setInterval(function(){
@@ -1185,7 +1231,7 @@ setInterval(function(){
   if(!st || st.ready || current() !== 'write'){ STUCK.since = 0; return; }
   if(STUCK.step !== st){ STUCK.step = st; STUCK.since = 0; }
   if(!STUCK.since){ STUCK.since = Date.now(); return; }
-  if(Date.now() - STUCK.since >= 12000){ cancelDemo(); st.ready = true; STUCK.since = 0; }
+  if(Date.now() - STUCK.since >= 20000){ cancelDemo(); st.ready = true; STUCK.since = 0; }
 }, 500);
 var errorsToday = 0;
 function noteError(msg){

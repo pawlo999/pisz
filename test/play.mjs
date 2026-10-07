@@ -15,7 +15,9 @@ export async function playSitting(page, how = {}) {
   const trace = [];
   const shots = how.shots;
   let n = 0, seed = how.seed || 1;
-  for (let guard = 0; guard < (how.maxActions || 200); guard++) {
+  const t0 = Date.now();
+  // bounded by time, not loop turns: the app waits for its voice between steps
+  for (let guard = 0; Date.now() - t0 < (how.maxMs || 240000); guard++) {
     const st = await page.evaluate(() => {
       const a = window.__pisz;
       return { screen: a.current(), step: a.STEP && a.STEP.st, ready: !!(a.STEP && a.STEP.ready),

@@ -163,9 +163,16 @@ copy/merge data, change name.
   otherwise "ą jak w słowie wąż" (never a declined form: "w wężu" loses the ą).
 - Picture words start with one plain sound: sowa, gęś, pomidor (not słoń,
   gwiazda, pies).
-- `voices.html` lets him compare, per letter, the name the iPad says now, the
-  iPad voice trying the sound, and a free recording (`sounds/`, CREDITS.md);
-  his picks come back as a `k:'V'` row through the sync service.
+- Letter sounds are recorded by a parent, once, on `record.html` (his call
+  7 Oct, "1a"): the iPad voice can only say a letter's name ("gie"), it fails
+  at a held sound ("uuu"), and the free recordings were five men's voices next
+  to a woman's TTS, with b d g k p t only as consonant+vowel. A recorded letter
+  is heard as the recording, then the voice's "jak gęś". Both apps play them
+  (Litery has its own copy of `sounds.js`), stored on the sync service under
+  the family key (`/a/<key>/<lang>/<letter>`, WAV, 22 kHz mono), cached on the
+  device for offline. Shared sounds: PL ó = u; NB c = k (its word is cowboy),
+  z = s, w = v. No recording, not loaded in 0.7 s, or audio not running: the
+  old phrase from the voice — never "jak gęś" alone.
 
 ## 8 · Next
 
@@ -183,8 +190,9 @@ copy/merge data, change name.
 
     python3 serve.py 8791                     # in one shell
     node test/engine.test.mjs                 # 64 checks, ~2 min
-    node test/worker.test.mjs                 # 14 checks
+    node test/worker.test.mjs                 # 25 checks
     PISZ_URL=http://localhost:8791/ node test/e2e.test.mjs   # WebKit + Chromium, ~10 min
+    PISZ_URL=http://localhost:8791/ node test/sounds.test.mjs  # recording + playback, Chromium, 40 checks
 
 WebKit is Playwright's 26.6 build — the engine iPadOS 26 Safari uses —
 running headless without root: its missing libraries were unpacked from

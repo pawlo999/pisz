@@ -571,28 +571,6 @@ async function suite(engine) {
   }
 
   /* ---------------------------------------------------------------- */
-  if (engine === 'chromium') {        // this WebKit build has no media plugins: audio crashes it
-    console.log('\nthe letter-sound test page');
-    const ctx = await b.newContext({ viewport: IPAD, serviceWorkers: 'block' });
-    const page = await ctx.newPage();
-    const errors = []; page.on('pageerror', e => errors.push(e.message));
-    let posted = null;
-    await page.route(SYNC + '/**', r => { posted = r.request().postData(); r.fulfill({ status: 200, headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }, body: '{"log":[]}' }); });
-    await page.goto(BASE_URL + 'voices.html'); await sleep(800);
-    const n = await page.evaluate(() => [document.querySelectorAll('#pl .row').length, document.querySelectorAll('#nb .row').length, document.querySelectorAll('#phrases .row').length]);
-    ok(n.join() === '31,23,15', 'every Polish and Norwegian letter, and the phrases to check', n.join());
-    const dur = await page.evaluate(async () => Promise.all(['sounds/pl/sz.wav', 'sounds/pl/ą.wav', 'sounds/nb/ø.wav'].map(f => new Promise(res => {
-      const a = new Audio(); a.onloadedmetadata = () => res(a.duration); a.onerror = () => res(-1); a.src = f; setTimeout(() => res(-2), 4000); }))));
-    ok(dur.every(d => d > 0.3 && d < 0.7), 'recordings load, including file names with ą and ø', JSON.stringify(dur));
-    await page.evaluate(() => document.querySelector('#pl .row').querySelectorAll('.pick')[2].click());
-    await page.fill('#key', 'family-key-0123456789'); await page.click('#send'); await sleep(400);
-    const row = posted && JSON.parse(posted).log[0];
-    ok(row && row.k === 'V' && JSON.parse(row.x)['pl:a'] === 'rec0', 'his pick reaches the sync service as one row', posted);
-    ok(!errors.length, 'no errors', errors.join(' | '));
-    await ctx.close();
-  }
-
-  /* ---------------------------------------------------------------- */
   if (engine === 'chromium') {
     console.log('\noffline: in the car, at her grandmother\'s');
     const ctx = await b.newContext({ viewport: IPAD, hasTouch: true });

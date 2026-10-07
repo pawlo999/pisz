@@ -3,7 +3,7 @@
 (function () {
 'use strict';
 
-var BUILD = 2;
+var BUILD = 3;
 /* The sync service. The URL is public; the key the parent pastes in is the
    only credential, because there is no login for a four-year-old.        */
 var SYNC_URL = 'https://pisz-sync.pawlo999.workers.dev';
@@ -241,30 +241,86 @@ if('speechSynthesis' in window){
    Everything handed to the speaker is lowercase — iOS announces capitals. */
 var VOX = { until:0, last:'', at:0 };
 function speakMs(text, rate){ return 300 + String(text).length * 62 / (rate || S.rate || 0.7); }
-function say(text, rate, interrupt){
+/* one sentence to the engine, which queues it behind the one playing */
+function utter(text, rate, counted){
   if(!('speechSynthesis' in window) || !text) return;
   try{
     var now = Date.now();
-    if(interrupt){ speechSynthesis.cancel(); VOX.until = now; }
-    /* the same sentence already waiting or playing: once is enough */
-    else if(text === VOX.last && VOX.until > now) return;
     var u = new SpeechSynthesisUtterance(String(text).toLowerCase());
     var v = VOICE[S.lang];
     if(v){ u.voice = v; u.lang = v.lang; }
     u.rate = rate || S.rate;
     speechSynthesis.speak(u);
-    VOX.until = Math.max(VOX.until, now) + speakMs(text, u.rate);
-    VOX.last = text; VOX.at = now;
+    if(!counted) VOX.until = Math.max(VOX.until, now) + speakMs(text, u.rate);
+    VOX.at = now;
   }catch(e){}
 }
-function hush(){ try{ speechSynthesis.cancel(); }catch(e){} VOX.until = 0; VOX.last = ''; }
-function voiceBusy(){
+/* A letter whose sound a parent recorded (record.html) travels inside the
+   sentence as MARK + id + MARK, and is played as that recording followed
+   by the voice's "jak sowa" — the voice itself can only say the letter's
+   name ("gie"), never its sound. A sentence holding one goes through a
+   queue of its own, so the recording waits for the voice ahead of it and
+   the voice waits for the recording.                                    */
+var MARK = '\u2063', CLIP_MS = 700;
+var Q = [], PUMP = { busy:false, t:0, src:null, gen:0 };
+function say(text, rate, interrupt){
+  if(!text) return;
+  var now = Date.now();
+  if(interrupt) hush();
+  /* the same sentence already waiting or playing: once is enough */
+  else if(text === VOX.last && (VOX.until > now || PUMP.busy)) return;
+  VOX.last = text;
+  var parts = String(text).split(MARK);
+  if(parts.length === 1 && !PUMP.busy){ utter(text, rate); return; }
+  parts.forEach(function(p, i){
+    if(i % 2){ Q.push({ id:p, rate:rate }); VOX.until = Math.max(VOX.until, now) + CLIP_MS + speakMs(restOf(p), rate || S.rate); }
+    else if(p.trim()){ Q.push({ text:p, rate:rate }); VOX.until = Math.max(VOX.until, now) + speakMs(p, rate || S.rate); }
+  });
+  pump();
+}
+function pump(){
+  clearTimeout(PUMP.t);
+  while(Q.length && Q[0].text !== undefined){ var x = Q.shift(); utter(x.text, x.rate, true); }
+  if(!Q.length){ PUMP.busy = false; return; }
+  PUMP.busy = true;
+  /* the recording waits for the voice ahead of it (not forever: an engine
+     stuck "speaking" must not hold the game)                             */
+  if(engineBusy() && Date.now() < VOX.until + 4000){ PUMP.t = setTimeout(pump, 60); return; }
+  var seg = Q.shift(), gen = PUMP.gen, done = false;
+  function fallback(){
+    if(done || gen !== PUMP.gen) return;
+    done = true; utter(plainPhrase(seg.id), seg.rate, true); pump();
+  }
+  /* not loaded in time, not recorded after all, or the audio is off: the
+     voice says the whole phrase the old way, so she never hears "jak sowa"
+     on its own                                                           */
+  PUMP.t = setTimeout(fallback, CLIP_MS);
+  window.LetterSounds.load(S.lang, seg.id).then(function(buf){
+    if(done || gen !== PUMP.gen) return;
+    ac();
+    var src = window.LetterSounds.start(buf);
+    if(!src){ fallback(); return; }
+    done = true; clearTimeout(PUMP.t); PUMP.src = src;
+    PUMP.t = setTimeout(function(){
+      if(gen !== PUMP.gen) return;
+      PUMP.src = null; utter(restOf(seg.id), seg.rate, true); pump();
+    }, Math.round(buf.duration * 1000) + 120);
+  }, fallback);
+}
+function hush(){
+  try{ speechSynthesis.cancel(); }catch(e){}
+  Q = []; PUMP.gen++; clearTimeout(PUMP.t); PUMP.busy = false;
+  if(PUMP.src){ try{ PUMP.src.stop(); }catch(e){} PUMP.src = null; }
+  VOX.until = 0; VOX.last = '';
+}
+function engineBusy(){
   if(Date.now() - VOX.at < 250) return true;           /* the engine may not report it yet */
   try{
     if(typeof speechSynthesis.speaking === 'boolean') return speechSynthesis.speaking || speechSynthesis.pending;
   }catch(e){}
   return Date.now() < VOX.until;
 }
+function voiceBusy(){ return PUMP.busy || engineBusy(); }
 /* cb once the voice has finished: asked of the engine, never more than
    4 s past its own estimate — an engine stuck "speaking" must not stop
    the game                                                              */
@@ -287,7 +343,8 @@ function ac(){
     AC = AC || new (window.AudioContext || window.webkitAudioContext)();
     /* resume() returns a promise that rejects when there is no audio device;
        unhandled, it surfaces as a page error                              */
-    if(AC.state === 'suspended'){ var pr = AC.resume(); if(pr && pr.catch) pr.catch(function(){}); }
+    /* iOS leaves it "interrupted" after a call or the screen locking */
+    if(AC.state !== 'running' && AC.state !== 'closed'){ var pr = AC.resume(); if(pr && pr.catch) pr.catch(function(){}); }
   }catch(e){ AC = null; }
   return AC;
 }
@@ -369,20 +426,31 @@ function wordOf(id){
   return WORD[S.lang][id] || WORD.pl[id] || WORD.nb[id] || ['', ''];
 }
 function wordOnly(id){ return WORD_ONLY[S.lang].indexOf(id) >= 0 || !WORD[S.lang][id]; }
+/* a letter the parent has recorded */
+function hasClip(id){
+  var g = G[id];
+  return !!(g && g.kind === 'letter' && WORD[S.lang][id] && window.LetterSounds && window.LetterSounds.has(S.lang, id));
+}
+/* " jak sowa", " jak w słowie motyl" */
+function restOf(id){
+  var w = wordOf(id)[0], c = id.toLowerCase();
+  return (w.charAt(0) === c ? LINK[S.lang] : INSIDE[S.lang]) + w;
+}
 /* "s jak słoń" — or just the word, when the voice cannot be trusted with the letter */
-function letterPhrase(id){
+function plainPhrase(id){
   var g = G[id], w = wordOf(id)[0];
   if(g.kind === 'digit') return w;
   if(g.kind === 'shape') return w;
   if(wordOnly(id)) return w;
-  var c = id.toLowerCase();
-  return c + (w.charAt(0) === c ? LINK[S.lang] : INSIDE[S.lang]) + w;
+  return id.toLowerCase() + restOf(id);
 }
+/* with a recording, its sound stands where the letter's name stood */
+function letterPhrase(id){ return hasClip(id) ? MARK + id + MARK : plainPhrase(id); }
 function prompt(id, st){
   var g = G[id], t = tx();
   if(g.kind === 'shape') return t.shape.replace('%w', wordOf(id)[2] || wordOf(id)[0]);
   if(st === 'M'){
-    if(g.kind === 'letter' && wordOnly(id)) return t.memGap.replace('%w', wordOf(id)[0]);
+    if(g.kind === 'letter' && wordOnly(id) && !hasClip(id)) return t.memGap.replace('%w', wordOf(id)[0]);
     return t.mem.replace('%w', letterPhrase(id));
   }
   return letterPhrase(id);
@@ -1248,6 +1316,8 @@ window.addEventListener('unhandledrejection', function(e){ noteError('promise: '
 
 /* ============ start-up ============================================= */
 load();
+function sounds(later){ return window.LetterSounds.init({ key:S.syncKey, ctx:ac, store:'pisz.sounds.index', later:later }); }
+sounds(1500);
 try{ if(navigator.storage && navigator.storage.persist) navigator.storage.persist(); }catch(e){}
 var forced = (location.search.match(/[?&]c=(\d)/) || [])[1];
 theme(PALETTE[forced !== undefined ? (+forced % PALETTE.length) : (Math.random() * PALETTE.length) | 0]);
@@ -1303,6 +1373,7 @@ function openParent(){
   panelFrom = current() || 'home';
   if(STEP){ clearTimeout(STEP.idleT); clearTimeout(STEP.judgeT); }
   cloudSync();
+  window.LetterSounds.refresh().then(paintSounds);
   paintParent();
   show('parent');
 }
@@ -1321,7 +1392,13 @@ function paintParent(){
   $('modev').textContent = (window.navigator.standalone ||
       (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches))
       ? 'full screen, from the home icon' : 'inside the browser';
-  paintSync(); paintChoices();
+  paintSync(); paintChoices(); paintSounds();
+}
+function paintSounds(){
+  var ix = window.LetterSounds._state.index || {}, n = function(l){ return Object.keys(ix[l] || {}).length; };
+  $('sndv').textContent = !S.syncKey ? 'needs the sync key below'
+    : (n('pl') || n('nb')) ? n('pl') + ' Polish, ' + n('nb') + ' Norwegian recorded'
+    : 'none yet — the voice says the letter names';
 }
 function paintSync(){ var e = $('syncstat'); if(e) e.textContent = S.syncMsg || (S.syncKey ? 'key set' : 'not set'); }
 function paintChoices(){
@@ -1355,7 +1432,10 @@ Array.prototype.forEach.call(document.querySelectorAll('[data-setlang]'), functi
   b.addEventListener('click', function(){ S.lang = b.getAttribute('data-setlang'); save(); paintChoices(); paintHome(); });
 });
 $('practicebtn').addEventListener('click', function(){ S.practice = !S.practice; paintChoices(); $('band').style.display = S.practice ? 'block' : 'none'; });
-$('syncsave').addEventListener('click', function(){ S.syncKey = ($('synckey').value || '').trim(); save(); S.syncMsg = ''; cloudSync(); paintSync(); });
+$('syncsave').addEventListener('click', function(){
+  S.syncKey = ($('synckey').value || '').trim(); save(); S.syncMsg = ''; cloudSync(); paintSync();
+  sounds().then(paintSounds);
+});
 $('syncnow').addEventListener('click', function(){ cloudSync(); paintSync(); });
 $('pback').addEventListener('click', function(){
   if(panelFrom === 'write' && RUN){ show('write'); if(STEP && STEP.relayout){ lastRect = ''; STEP.relayout(); } return; }
@@ -1424,6 +1504,7 @@ if(/[?&]dev=probe\b/.test(location.search)){
                     get RUN(){ return RUN; }, get SES(){ return SES; }, L:L, P:P, current:current,
                     toClient:function(x, y){ return { x:L.left + X(x), y:L.top + Y(y) }; },
                     startSession:startSession, runItem:runItem, layout:layout, IN:IN, save:save,
-                    letterPhrase:letterPhrase, prompt:prompt };
+                    letterPhrase:letterPhrase, plainPhrase:plainPhrase, prompt:prompt, say:say, hush:hush,
+                    voiceBusy:voiceBusy, whenQuiet:whenQuiet, sounds:sounds, openParent:openParent };
 }
 })();

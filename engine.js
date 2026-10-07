@@ -322,6 +322,16 @@ Tracer.prototype.begin = function(p){
     this.move(p);
     return 'ok';
   }
+  /* lifted half way: she carries on from anywhere on the part already
+     drawn, its start dot included (his call, 7 Oct — told "start from the
+     green dot", she went back to it, and on one O it was refused 12 times
+     because only the hidden point where the tracking stopped counted)     */
+  if(this.idx > 0 && this.nearestUpTo(p, this.idx).d <= this.startTol){
+    this.down = true; this.last = { x:p.x, y:p.y }; this.offRun = 0;
+    this.lifts++;
+    this.move(p);
+    return 'ok';
+  }
   /* nobody teaches which way an accent or a slash goes: from either end */
   var end = this.s.pts[this.s.pts.length-1];
   if(this.bidir && this.idx === 0 && dist(p, end) <= this.startTol){
@@ -338,9 +348,10 @@ Tracer.prototype.begin = function(p){
   return 'off';
 };
 
-Tracer.prototype.nearest = function(p){
+Tracer.prototype.nearest = function(p){ return this.nearestUpTo(p, this.s.pts.length - 1); };
+Tracer.prototype.nearestUpTo = function(p, upto){
   var best = Infinity, bi = 0, pts = this.s.pts;
-  for(var i = 0; i < pts.length; i++){
+  for(var i = 0; i <= upto && i < pts.length; i++){
     var dd = d2(p, pts[i]);
     if(dd < best){ best = dd; bi = i; }
   }
@@ -356,7 +367,7 @@ Tracer.prototype.move = function(p){
   var pts = this.s.pts, cum = this.s.cum;
   for(var k = 1; k <= n; k++){
     var q = { x:from.x + (p.x - from.x)*k/n, y:from.y + (p.y - from.y)*k/n };
-    var limit = cum[this.idx] + this.window, best = Infinity, bi = -1;
+    var limit = cum[this.idx] + this.window, best = Infinity, bi = -1, drawn;
     for(var i = this.idx; i < pts.length && cum[i] <= limit; i++){
       var dd = d2(q, pts[i]);
       if(dd < best){ best = dd; bi = i; }
@@ -364,6 +375,11 @@ Tracer.prototype.move = function(p){
     if(Math.sqrt(best) <= this.tol){
       if(bi > this.idx){ r.adv += bi - this.idx; this.idx = bi; }
       this.offRun = 0;
+    } else if(this.idx > 0 && (drawn = this.nearestUpTo(q, this.idx)).d <= this.tol){
+      /* going over the part already drawn — on her way back to where she
+         stopped, or backwards: on the line, not off it, but behind her   */
+      this.offRun = 0;
+      if(cum[drawn.i] < cum[this.idx] - this.window * 0.5) r.back = true;
     } else {
       var step = seg / n;
       this.offRun += step; this.off += step;

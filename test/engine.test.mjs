@@ -89,6 +89,26 @@ function trace(stroke, pts, opt) {
   t.begin(pts[24]); pts.slice(25).forEach(p => t.move(p)); t.end();
   ok(mid > 0.2 && mid < 0.8 && t.done && t.lifts === 1, 'lifting half way and carrying on finishes the stroke', `mid ${mid.toFixed(2)} lifts ${t.lifts}`);
 
+  /* 7 Oct: lifted half way round her O, told "start from the green dot", she
+     went back to it — and it was refused 12 times on one O               */
+  {
+    const O = P.G.O.strokes[0], op = traceAlong(O);
+    const h = Math.round(op.length * 0.45);
+    const t2 = new P.Tracer(O, { tol: 13 }); t2.begin(op[0]);
+    op.slice(1, h).forEach(p => t2.move(p)); t2.end();
+    const at = t2.progress();
+    const why = t2.begin(op[0]);
+    op.slice(1).forEach(p => t2.move(p)); t2.end();
+    ok(at > 0.3 && why === 'ok' && t2.done, `after a lift at ${Math.round(at * 100)}%, a touch back on the start dot carries on`, why);
+    ok(t2.off < 1, 'going over the part already drawn, on her way back, is not counted as off the line', t2.off.toFixed(1));
+    const t3 = new P.Tracer(O, { tol: 13 }); t3.begin(op[0]); op.slice(1, h).forEach(p => t3.move(p)); t3.end();
+    const back = op[Math.round(h * 0.6)];
+    ok(t3.begin(back) === 'ok', 'a touch anywhere on the part already drawn carries on too');
+    const t4 = new P.Tracer(O, { tol: 13 }); t4.begin(op[0]); op.slice(1, h).forEach(p => t4.move(p)); t4.end();
+    const ahead = op[h + Math.round(op.length * 0.2)];          /* a fifth of the way further round */
+    ok(t4.begin(ahead) !== 'ok' && t4.begin({ x: 50, y: 50 }) !== 'ok', 'a touch ahead of where she stopped, or off the letter, is still refused');
+  }
+
   const fast = P.geo.bySpacing(P.G.L.strokes[0].pts, 22);
   ok(trace(P.G.L.strokes[0], fast).t.done, 'a fast swipe with events 22 units apart still fills in');
 

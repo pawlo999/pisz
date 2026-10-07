@@ -181,6 +181,18 @@ copy/merge data, change name.
   /x/) or r (his is rolled). record.html marks those rows "now uses your
   Polish …"; a Norwegian recording replaces it.
 
+## 7c · Her first real session (7 Oct, 14:28–14:39 UTC) and what changed (b5)
+
+What he saw, what the log and a replay of her own strokes showed, and his calls:
+
+| She met | Cause, measured | Now |
+|---|---|---|
+| She drew at once and the pad ignored her | ink only after the guide had named and drawn it: 3.5 s on "\|", 5.9 s on A, 7.1 s on M | the pad is live from the first moment; the guide goes on drawing, without its words once she has started, and stops when her step is done; "Teraz ty!" only if she has not begun. The same during 👀 and after a miss (his call: "instructions still could be shown but let her draw at same time") |
+| Lifting her finger: "Zacznij od zielonej kropki", but the line went on where she lifted | after a lift only the hidden point where the tracking stopped was accepted; the green dot stayed at the start and a touch on it was refused — her O on dots: 27 touches, 20 refused, 12 of them on the dot | she carries on from anywhere on the part already drawn (start dot included); the dot moves to where she stopped; the voice says "Rysuj dalej od zielonej kropki" (1a). Replayed, today's 47 refused touches drop to 28; the rest were genuinely nowhere near |
+| No eraser while tracing dots | 🧽 was hidden in road and dots | 🧽 in dots: her ink goes and the letter starts again from line 1, logged as `cl` (3a). Not on the road, which only fills where it should |
+| The figure above the pad was not the one asked for | a copy step's figure stayed on into the next item (twice: "−" under "\|", "\" under "o") | the figure shows only in copy and name steps |
+| She wanted her A and could not pick it | 📖 lists every letter but only showed her drawings | ✏️ on a letter's page: in a sitting it joins it; after one it starts the next sitting with her letter first; not after the day's last sitting; steps as for any letter (`P.plan`), counted (4a) |
+
 ## 8 · Next
 
 | | Slice | State |
@@ -196,7 +208,7 @@ copy/merge data, change name.
 ## 9 · Tests
 
     python3 serve.py 8791                     # in one shell
-    node test/engine.test.mjs                 # 64 checks, ~2 min
+    node test/engine.test.mjs                 # 68 checks, ~2 min
     node test/worker.test.mjs                 # 25 checks
     PISZ_URL=http://localhost:8791/ node test/e2e.test.mjs   # WebKit + Chromium, ~10 min
     PISZ_URL=http://localhost:8791/ node test/sounds.test.mjs  # recording + playback, Chromium, 47 checks

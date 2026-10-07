@@ -1,0 +1,391 @@
+{
+ "pl": {
+  "a": {
+   "file": "pl/a.wav",
+   "ms": 420,
+   "method": "whole",
+   "source": "LL-Q809 (pol)-Olaf-a.wav",
+   "credit": "Olaf (Lingua Libre), CC0 1.0"
+  },
+  "ą": {
+   "file": "pl/ą.wav",
+   "ms": 440,
+   "method": "whole",
+   "source": "LL-Q809 (pol)-Olaf-ą.wav",
+   "credit": "Olaf (Lingua Libre), CC0 1.0"
+  },
+  "e": {
+   "file": "pl/e.wav",
+   "ms": 480,
+   "method": "whole",
+   "source": "LL-Q809 (pol)-Olaf-e.wav",
+   "credit": "Olaf (Lingua Libre), CC0 1.0"
+  },
+  "ę": {
+   "file": "pl/ę.wav",
+   "ms": 545,
+   "method": "whole",
+   "source": "LL-Q809 (pol)-Olaf-ę.wav",
+   "credit": "Olaf (Lingua Libre), CC0 1.0"
+  },
+  "i": {
+   "file": "pl/i.wav",
+   "ms": 470,
+   "method": "whole",
+   "source": "LL-Q809 (pol)-Olaf-i.wav",
+   "credit": "Olaf (Lingua Libre), CC0 1.0"
+  },
+  "o": {
+   "file": "pl/o.wav",
+   "ms": 445,
+   "method": "whole",
+   "source": "LL-Q809 (pol)-Olaf-o.wav",
+   "credit": "Olaf (Lingua Libre), CC0 1.0"
+  },
+  "u": {
+   "file": "pl/u.wav",
+   "ms": 400,
+   "method": "whole",
+   "source": "LL-Q809 (pol)-Olaf-u.wav",
+   "credit": "Olaf (Lingua Libre), CC0 1.0"
+  },
+  "ó": {
+   "file": "pl/ó.wav",
+   "ms": 400,
+   "method": "whole",
+   "source": "LL-Q809 (pol)-Olaf-u.wav",
+   "credit": "Olaf (Lingua Libre), CC0 1.0"
+  },
+  "y": {
+   "file": "pl/y.wav",
+   "ms": 530,
+   "method": "whole",
+   "source": "LL-Q809 (pol)-Poemat-y.wav",
+   "credit": "Poemat (Lingua Libre), CC0 1.0"
+  },
+  "y2": {
+   "file": "pl/y2.wav",
+   "ms": 480,
+   "method": "whole",
+   "source": "Close central unrounded vowel.ogg",
+   "credit": "Denelson83, Wikimedia Commons IPA chart, CC BY-SA 3.0"
+  },
+  "f": {
+   "file": "pl/f.wav",
+   "ms": 560,
+   "method": "whole",
+   "source": "LL-Q809 (pol)-Olaf-fff.wav",
+   "credit": "Olaf (Lingua Libre), CC0 1.0"
+  },
+  "m": {
+   "file": "pl/m.wav",
+   "ms": 500,
+   "method": "whole",
+   "source": "LL-Q809 (pol)-Olaf-mmm.wav",
+   "credit": "Olaf (Lingua Libre), CC0 1.0"
+  },
+  "ś": {
+   "file": "pl/ś.wav",
+   "ms": 420,
+   "method": "fromS",
+   "source": "LL-Q809 (pol)-Olaf-ćśśś.wav",
+   "credit": "Olaf (Lingua Libre), CC0 1.0"
+  },
+  "s": {
+   "file": "pl/s.wav",
+   "ms": 470,
+   "method": "fromS",
+   "source": "LL-Q809 (pol)-Olaf-s.wav",
+   "credit": "Olaf (Lingua Libre), CC0 1.0"
+  },
+  "sz": {
+   "file": "pl/sz.wav",
+   "ms": 515,
+   "method": "head",
+   "source": "Voiceless retroflex sibilant.ogg",
+   "credit": "Peter Isotalo, Wikimedia Commons IPA chart, CC BY-SA 3.0 — trimmed"
+  },
+  "z": {
+   "file": "pl/z.wav",
+   "ms": 400,
+   "method": "head",
+   "source": "Voiced alveolar sibilant.ogg",
+   "credit": "Peter Isotalo, Wikimedia Commons IPA chart, CC BY-SA 3.0 — trimmed"
+  },
+  "ź": {
+   "file": "pl/ź.wav",
+   "ms": 500,
+   "method": "head",
+   "source": "Voiced alveolo-palatal sibilant.ogg",
+   "credit": "Peter Isotalo, Wikimedia Commons IPA chart, CC BY-SA 3.0 — trimmed"
+  },
+  "ż": {
+   "file": "pl/ż.wav",
+   "ms": 460,
+   "method": "head",
+   "source": "Voiced retroflex sibilant.ogg",
+   "credit": "Peter Isotalo, Wikimedia Commons IPA chart, CC BY-SA 3.0 — trimmed"
+  },
+  "h": {
+   "file": "pl/h.wav",
+   "ms": 420,
+   "method": "head",
+   "source": "Voiceless velar fricative.ogg",
+   "credit": "Peter Isotalo, Wikimedia Commons IPA chart, CC BY-SA 3.0 — trimmed"
+  },
+  "l": {
+   "file": "pl/l.wav",
+   "ms": 500,
+   "method": "head",
+   "source": "Alveolar lateral approximant.ogg",
+   "credit": "Peter Isotalo, Wikimedia Commons IPA chart, CC BY-SA 3.0 — trimmed"
+  },
+  "ł": {
+   "file": "pl/ł.wav",
+   "ms": 440,
+   "method": "head",
+   "source": "Voiced labio-velar approximant.ogg",
+   "credit": "Peter Isotalo, Wikimedia Commons IPA chart, CC BY-SA 3.0 — trimmed"
+  },
+  "n": {
+   "file": "pl/n.wav",
+   "ms": 420,
+   "method": "head3",
+   "source": "Alveolar nasal.ogg",
+   "credit": "Peter Isotalo, Wikimedia Commons IPA chart, CC BY-SA 3.0 — trimmed"
+  },
+  "ń": {
+   "file": "pl/ń.wav",
+   "ms": 440,
+   "method": "head",
+   "source": "Palatal nasal.ogg",
+   "credit": "Peter Isotalo, Wikimedia Commons IPA chart, CC BY-SA 3.0 — trimmed"
+  },
+  "j": {
+   "file": "pl/j.wav",
+   "ms": 422,
+   "method": "head",
+   "source": "Palatal approximant.ogg",
+   "credit": "Peter Isotalo, Wikimedia Commons IPA chart, CC BY-SA 3.0 — trimmed"
+  },
+  "w": {
+   "file": "pl/w.wav",
+   "ms": 425,
+   "method": "mrun",
+   "source": "Voiced labiodental fricative.ogg",
+   "credit": "Peter Isotalo, Wikimedia Commons IPA chart, CC BY-SA 3.0 — trimmed"
+  },
+  "r": {
+   "file": "pl/r.wav",
+   "ms": 160,
+   "method": "head",
+   "source": "Alveolar trill.ogg",
+   "credit": "Peter Isotalo, Wikimedia Commons IPA chart, CC BY-SA 3.0 — trimmed"
+  },
+  "b": {
+   "file": "pl/b.wav",
+   "ms": 110,
+   "method": "cv",
+   "source": "Voiced bilabial plosive.ogg",
+   "credit": "Peter Isotalo, Wikimedia Commons IPA chart, CC BY-SA 3.0 — trimmed"
+  },
+  "d": {
+   "file": "pl/d.wav",
+   "ms": 130,
+   "method": "cv",
+   "source": "Voiced alveolar plosive.ogg",
+   "credit": "Peter Isotalo, Wikimedia Commons IPA chart, CC BY-SA 3.0 — trimmed"
+  },
+  "g": {
+   "file": "pl/g.wav",
+   "ms": 130,
+   "method": "cv",
+   "source": "Voiced velar plosive.ogg",
+   "credit": "Peter Isotalo, Wikimedia Commons IPA chart, CC BY-SA 3.0 — trimmed"
+  },
+  "k": {
+   "file": "pl/k.wav",
+   "ms": 120,
+   "method": "cv",
+   "source": "Voiceless velar plosive.ogg",
+   "credit": "Peter Isotalo, Wikimedia Commons IPA chart, CC BY-SA 3.0 — trimmed"
+  },
+  "p": {
+   "file": "pl/p.wav",
+   "ms": 90,
+   "method": "cv",
+   "source": "Voiceless bilabial plosive.ogg",
+   "credit": "Peter Isotalo, Wikimedia Commons IPA chart, CC BY-SA 3.0 — trimmed"
+  },
+  "t": {
+   "file": "pl/t.wav",
+   "ms": 120,
+   "method": "cv",
+   "source": "Voiceless alveolar plosive.ogg",
+   "credit": "Peter Isotalo, Wikimedia Commons IPA chart, CC BY-SA 3.0 — trimmed"
+  }
+ },
+ "nb": {
+  "a": {
+   "file": "nb/a.wav",
+   "ms": 455,
+   "method": "whole",
+   "source": "LL-Q9043 (nor)-Telaneo-a.wav",
+   "credit": "Telaneo (Lingua Libre), CC0 1.0"
+  },
+  "e": {
+   "file": "nb/e.wav",
+   "ms": 485,
+   "method": "whole",
+   "source": "LL-Q9043 (nor)-Telaneo-e.wav",
+   "credit": "Telaneo (Lingua Libre), CC0 1.0"
+  },
+  "i": {
+   "file": "nb/i.wav",
+   "ms": 520,
+   "method": "fromV",
+   "source": "LL-Q9043 (nor)-Telaneo-i.wav",
+   "credit": "Telaneo (Lingua Libre), CC0 1.0"
+  },
+  "o": {
+   "file": "nb/o.wav",
+   "ms": 410,
+   "method": "whole",
+   "source": "LL-Q9043 (nor)-Telaneo-o.wav",
+   "credit": "Telaneo (Lingua Libre), CC0 1.0"
+  },
+  "u": {
+   "file": "nb/u.wav",
+   "ms": 520,
+   "method": "whole",
+   "source": "LL-Q9043 (nor)-Telaneo-u.wav",
+   "credit": "Telaneo (Lingua Libre), CC0 1.0"
+  },
+  "y": {
+   "file": "nb/y.wav",
+   "ms": 410,
+   "method": "fromV",
+   "source": "LL-Q9043 (nor)-Telaneo-y.wav",
+   "credit": "Telaneo (Lingua Libre), CC0 1.0"
+  },
+  "æ": {
+   "file": "nb/æ.wav",
+   "ms": 545,
+   "method": "whole",
+   "source": "LL-Q9043 (nor)-Telaneo-æ.wav",
+   "credit": "Telaneo (Lingua Libre), CC0 1.0"
+  },
+  "ø": {
+   "file": "nb/ø.wav",
+   "ms": 410,
+   "method": "whole",
+   "source": "LL-Q9043 (nor)-Telaneo-ø.wav",
+   "credit": "Telaneo (Lingua Libre), CC0 1.0"
+  },
+  "å": {
+   "file": "nb/å.wav",
+   "ms": 500,
+   "method": "whole",
+   "source": "LL-Q9043 (nor)-Telaneo-å.wav",
+   "credit": "Telaneo (Lingua Libre), CC0 1.0"
+  },
+  "s": {
+   "file": "nb/s.wav",
+   "ms": 485,
+   "method": "tail",
+   "source": "LL-Q9043 (nor)-Sebbog13-s.wav",
+   "credit": "Sebbog13 (Lingua Libre), CC0 1.0"
+  },
+  "f": {
+   "file": "nb/f.wav",
+   "ms": 470,
+   "method": "tail",
+   "source": "LL-Q9043 (nor)-Telaneo-f.wav",
+   "credit": "Telaneo (Lingua Libre), CC0 1.0"
+  },
+  "m": {
+   "file": "nb/m.wav",
+   "ms": 420,
+   "method": "tail",
+   "source": "LL-Q9043 (nor)-Telaneo-m.wav",
+   "credit": "Telaneo (Lingua Libre), CC0 1.0"
+  },
+  "n": {
+   "file": "nb/n.wav",
+   "ms": 470,
+   "method": "tail",
+   "source": "LL-Q9043 (nor)-Telaneo-n.wav",
+   "credit": "Telaneo (Lingua Libre), CC0 1.0"
+  },
+  "h": {
+   "file": "nb/h.wav",
+   "ms": 420,
+   "method": "head",
+   "source": "Voiceless glottal fricative.ogg",
+   "credit": "Peter Isotalo, Wikimedia Commons IPA chart, CC BY-SA 3.0 — trimmed"
+  },
+  "v": {
+   "file": "nb/v.wav",
+   "ms": 520,
+   "method": "head",
+   "source": "Labiodental approximant.ogg",
+   "credit": "Peter Isotalo, Wikimedia Commons IPA chart, CC BY-SA 3.0 — trimmed"
+  },
+  "l": {
+   "file": "nb/l.wav",
+   "ms": 500,
+   "method": "head",
+   "source": "Alveolar lateral approximant.ogg",
+   "credit": "Peter Isotalo, Wikimedia Commons IPA chart, CC BY-SA 3.0 — trimmed"
+  },
+  "j": {
+   "file": "nb/j.wav",
+   "ms": 422,
+   "method": "head",
+   "source": "Palatal approximant.ogg",
+   "credit": "Peter Isotalo, Wikimedia Commons IPA chart, CC BY-SA 3.0 — trimmed"
+  },
+  "b": {
+   "file": "nb/b.wav",
+   "ms": 110,
+   "method": "cv",
+   "source": "Voiced bilabial plosive.ogg",
+   "credit": "Peter Isotalo, Wikimedia Commons IPA chart, CC BY-SA 3.0 — trimmed"
+  },
+  "d": {
+   "file": "nb/d.wav",
+   "ms": 130,
+   "method": "cv",
+   "source": "Voiced alveolar plosive.ogg",
+   "credit": "Peter Isotalo, Wikimedia Commons IPA chart, CC BY-SA 3.0 — trimmed"
+  },
+  "g": {
+   "file": "nb/g.wav",
+   "ms": 130,
+   "method": "cv",
+   "source": "Voiced velar plosive.ogg",
+   "credit": "Peter Isotalo, Wikimedia Commons IPA chart, CC BY-SA 3.0 — trimmed"
+  },
+  "k": {
+   "file": "nb/k.wav",
+   "ms": 120,
+   "method": "cv",
+   "source": "Voiceless velar plosive.ogg",
+   "credit": "Peter Isotalo, Wikimedia Commons IPA chart, CC BY-SA 3.0 — trimmed"
+  },
+  "p": {
+   "file": "nb/p.wav",
+   "ms": 90,
+   "method": "cv",
+   "source": "Voiceless bilabial plosive.ogg",
+   "credit": "Peter Isotalo, Wikimedia Commons IPA chart, CC BY-SA 3.0 — trimmed"
+  },
+  "t": {
+   "file": "nb/t.wav",
+   "ms": 120,
+   "method": "cv",
+   "source": "Voiceless alveolar plosive.ogg",
+   "credit": "Peter Isotalo, Wikimedia Commons IPA chart, CC BY-SA 3.0 — trimmed"
+  }
+ }
+}

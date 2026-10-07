@@ -150,12 +150,12 @@ function glyph(id, kind, strokes, opt){
 }
 
 /* -- shapes: the pre-writing strokes, in the order children can copy them -- */
-glyph('|',   'shape', ['M 0 0 L 0 100'],                         { cue:['d'], theme:'rain' });
-glyph('-',   'shape', ['M 0 50 L 100 50'],                       { cue:['a'], theme:'road' });
-glyph('o',   'shape', ['A 50 50 50 50 -90 -450'],                { cue:['r'], theme:'ball' });
+glyph('|',   'shape', ['M 0 0 L 0 100'],                         { cue:['d'], theme:'down' });
+glyph('-',   'shape', ['M 0 50 L 100 50'],                       { cue:['a'], theme:'across' });
+glyph('o',   'shape', ['A 50 50 50 50 -90 -450'],                { cue:['r'], theme:'ring' });
 glyph('+',   'shape', ['M 50 0 L 50 100', 'M 0 50 L 100 50'],    { cue:['d','a'], theme:'plus', needs:['|','-'] });
-glyph('/',   'shape', ['M 80 0 L 0 100'],                        { cue:['s'], theme:'slide', needs:['|','-'] });
-glyph('\\',  'shape', ['M 0 0 L 80 100'],                        { cue:['s'], theme:'slide', needs:['|','-'] });
+glyph('/',   'shape', ['M 80 0 L 0 100'],                        { cue:['s'], theme:'slantL', needs:['|','-'] });
+glyph('\\',  'shape', ['M 0 0 L 80 100'],                        { cue:['s'], theme:'slantR', needs:['|','-'] });
 glyph('#',   'shape', ['M 0 0 L 0 90 L 90 90 L 90 0 L 0 0'],      { cue:['q'], theme:'box', needs:['|','-'] });
 glyph('^',   'shape', ['M 0 100 L 45 0 L 90 100'],               { cue:['u'], theme:'mountain', needs:['\\','/'] });
 glyph('~',   'shape', ['M 0 55 C 12 20 38 20 50 55 C 62 90 88 90 100 55'], { cue:['w'], theme:'wave', needs:['o'] });

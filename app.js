@@ -12,11 +12,14 @@ var P = window.Pisz, R = window.PiszReport, G = P.G;
 /* ============ content ============================================== */
 /* The word a letter "lives in", shown with its picture and spoken as
    "s jak słoń". Same rule as Litery: never a bare letter to the speaker. */
+/* Each word starts with ONE plain sound: a cluster (sł-, gw-) or a softened
+   consonant (pi-) makes the first sound hard to hear at four (research,
+   7 Oct) — so sowa, gęś and pomidor, not słoń, gwiazda and pies.          */
 var WORD = {
   pl:{ A:['auto','🚗'], B:['but','👟'], C:['cebula','🧅'], D:['dom','🏠'], E:['ekran','🖥️'],
-       F:['foka','🦭'], G:['gwiazda','⭐️'], H:['hipopotam','🦛'], I:['indyk','🦃'], J:['jabłko','🍎'],
+       F:['foka','🦭'], G:['gęś','🪿'], H:['hipopotam','🦛'], I:['indyk','🦃'], J:['jabłko','🍎'],
        K:['kot','🐱'], L:['lody','🍦'], M:['mama','👩'], N:['nos','👃'], O:['oko','👁️'],
-       P:['pies','🐶'], R:['ryba','🐟'], S:['słoń','🐘'], T:['tort','🎂'], U:['ucho','👂'],
+       P:['pomidor','🍅'], R:['ryba','🐟'], S:['sowa','🦉'], T:['tort','🎂'], U:['ucho','👂'],
        W:['woda','💧'], Y:['motyl','🦋'], Z:['zebra','🦓'],
        /* ćma: there is no moth emoji, the butterfly stands in for it */
        'Ą':['wąż','🐍'], 'Ć':['ćma','🦋'], 'Ę':['ręka','✋'], 'Ł':['łódka','⛵'], 'Ń':['koń','🐴'],
@@ -31,24 +34,33 @@ var WORD = {
 };
 /* letters the voice is not trusted to say on their own (Litery: iOS is
    silent or wrong on some) — these are only ever heard inside their word */
-var WORD_ONLY = { pl:'ĄĘŃÓ', nb:'ØÅY' };
-/* letters whose word does not start with them, said his way (6 Oct) */
-var PHRASE = { pl:{ Y:'y jak w motylu' }, nb:{} };
+var WORD_ONLY = { pl:'', nb:'ØÅY' };
+/* One rule for Polish (his call, 7 Oct): a letter that starts its word is
+   "s jak sowa"; one that cannot start a word is "ą jak w słowie wąż".
+   Never "jak w wężu" or "jak w koniu": the declined word loses the letter. */
+var INSIDE = { pl:' jak w słowie ', nb:' som i ' };
 var NUM = {
   pl:['zero','jeden','dwa','trzy','cztery','pięć','sześć','siedem','osiem','dziewięć'],
   nb:['null','en','to','tre','fire','fem','seks','sju','åtte','ni']
 };
 var KEYCAP = ['0️⃣','1️⃣','2️⃣','3️⃣','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣','9️⃣'];
-/* [name, picture, what the instruction says — Polish needs the accusative] */
+/* [name, picture, what the instruction says — Polish needs the accusative].
+   A shape is called what it is. A picture is kept only where it looks like
+   the shape (mountain, rainbow, waves); "deszcz" for a lone line meant
+   nothing without a cloud on screen (his call, 7 Oct).                   */
 var SHAPE = {
-  pl:{ rain:['deszcz','🌧️','deszcz'], road:['gąsienica','🐛','gąsienicę'], ball:['piłka','⚽','piłkę'],
-       plus:['plusik','➕','plusik'], slide:['zjeżdżalnia','🛝','zjeżdżalnię'], box:['prezent','🎁','prezent'],
-       x:['krzyżyk','❌','krzyżyk'], mountain:['góra','⛰️','górę'], zigzag:['błyskawica','⚡','błyskawicę'],
-       rainbow:['tęcza','🌈','tęczę'], wave:['fale','🌊','fale'] },
-  nb:{ rain:['regn','🌧️','regn'], road:['larve','🐛','en larve'], ball:['ball','⚽','en ball'],
-       plus:['pluss','➕','et pluss'], slide:['sklie','🛝','en sklie'], box:['gave','🎁','en gave'],
-       x:['kryss','❌','et kryss'], mountain:['fjell','⛰️','et fjell'], zigzag:['lyn','⚡','et lyn'],
-       rainbow:['regnbue','🌈','en regnbue'], wave:['bølger','🌊','bølger'] }
+  pl:{ down:['kreska w dół','⬇️','kreskę w dół'], across:['kreska w bok','➡️','kreskę w bok'],
+       ring:['kółko','⭕','kółko'], plus:['plusik','➕','plusik'],
+       slantL:['skośna kreska w lewo','↙️','skośną kreskę w lewo'],
+       slantR:['skośna kreska w prawo','↘️','skośną kreskę w prawo'],
+       box:['kwadrat','🟪','kwadrat'], x:['krzyżyk','❌','krzyżyk'], mountain:['góra','⛰️','górę'],
+       zigzag:['zygzak','⚡','zygzak'], rainbow:['tęcza','🌈','tęczę'], wave:['fale','🌊','fale'] },
+  nb:{ down:['strek ned','⬇️','en strek ned'], across:['strek bortover','➡️','en strek bortover'],
+       ring:['ring','⭕','en ring'], plus:['pluss','➕','et pluss'],
+       slantL:['skrå strek mot venstre','↙️','en skrå strek mot venstre'],
+       slantR:['skrå strek mot høyre','↘️','en skrå strek mot høyre'],
+       box:['firkant','🟪','en firkant'], x:['kryss','❌','et kryss'], mountain:['fjell','⛰️','et fjell'],
+       zigzag:['sikksakk','⚡','en sikksakk'], rainbow:['regnbue','🌈','en regnbue'], wave:['bølger','🌊','bølger'] }
 };
 var LINK = { pl:' jak ', nb:' som i ' };
 var T_ = {
@@ -361,9 +373,9 @@ function letterPhrase(id){
   var g = G[id], w = wordOf(id)[0];
   if(g.kind === 'digit') return w;
   if(g.kind === 'shape') return w;
-  if(PHRASE[S.lang][id]) return PHRASE[S.lang][id];
   if(wordOnly(id)) return w;
-  return id.toLowerCase() + LINK[S.lang] + w;
+  var c = id.toLowerCase();
+  return c + (w.charAt(0) === c ? LINK[S.lang] : INSIDE[S.lang]) + w;
 }
 function prompt(id, st){
   var g = G[id], t = tx();

@@ -72,12 +72,16 @@ function spread(list, n){
   return out;
 }
 
+/* one stylesheet for both reports on the shared dashboard */
+function ensureCss(){
+  if(document.getElementById('pisz-report-css')) return;
+  var st = el('style'); st.id = 'pisz-report-css'; st.textContent = CSS; document.head.appendChild(st);
+}
+
 /* opt: { lang, digits, now, name, saveError, plan } */
 function render(host, log, opt){
   opt = opt || {};
-  if(!document.getElementById('pisz-report-css')){
-    var st = el('style'); st.id = 'pisz-report-css'; st.textContent = CSS; document.head.appendChild(st);
-  }
+  ensureCss();
   host.textContent = '';
   var wrap = el('div', 'pr'); host.appendChild(wrap);
   log = (log || []).filter(function(r){ return r && typeof r.t === 'number'; });
@@ -214,5 +218,5 @@ function render(host, log, opt){
   wrap.appendChild(el('div', 'note', log.length + ' rows in the record.'));
 }
 
-root.PiszReport = { render:render };
+root.PiszReport = { render:render, ensureCss:ensureCss };
 })(typeof window !== 'undefined' ? window : this);

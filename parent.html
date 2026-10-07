@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#14161c">
-<title>Pisz — parent</title>
+<title>Litery + Pisz — parent</title>
 <style>
   :root{color-scheme:dark}
   body{margin:0;background:#14161c;color:#eceff5;font:500 15px/1.45 ui-rounded,system-ui,-apple-system,sans-serif;}
@@ -13,8 +13,18 @@
   .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
   input{flex:1;min-width:200px;font:14px ui-monospace,monospace;padding:12px;border-radius:10px;border:1px solid #2b3142;background:#0b0d12;color:#cfd5e1}
   button{background:#7c5cff;color:#fff;border:0;border-radius:10px;padding:12px 18px;font-weight:700;font-size:15px}
-  #msg{color:#9aa3b2;font-size:13px;min-height:18px}
   select{background:#0b0d12;color:#cfd5e1;border:1px solid #2b3142;border-radius:10px;padding:10px}
+  #msg{color:#9aa3b2;font-size:13px;min-height:18px}
+  .together{background:#1d2130;border-radius:14px;padding:14px 16px;margin:14px 0}
+  .together h2{font-size:16px;margin:0 0 8px}
+  .together .letters{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 10px}
+  .together .letters span{display:inline-flex;min-width:34px;height:34px;padding:0 6px;border-radius:9px;align-items:center;justify-content:center;font-weight:800;background:#eab308;color:#0d0f14}
+  .together li{margin:3px 0;color:#cfd5e1}
+  .tabs{display:flex;gap:8px;margin:18px 0 4px}
+  .tabs button{background:#262b38;color:#cfd5e1}
+  .tabs button.on{background:#7c5cff;color:#fff}
+  .sect{display:none}
+  .sect.on{display:block}
 </style>
 </head>
 <body>
@@ -22,38 +32,107 @@
   <h1 id="title">How she is doing</h1>
   <div class="row">
     <input id="key" type="text" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false"
-           placeholder="sync key (the same one as in the app)">
+           placeholder="sync key (the same one as in both apps)">
     <select id="lang"><option value="pl">Polski</option><option value="nb">Norsk</option></select>
     <button id="go">Show</button>
   </div>
   <div id="msg"></div>
-  <div id="rep"></div>
+
+  <div class="together" id="together" style="display:none">
+    <h2>Five minutes together today</h2>
+    <div id="tletters"></div>
+    <ul id="ttips"></ul>
+  </div>
+
+  <div class="tabs">
+    <button id="tab-litery" class="on">Litery · reading letters</button>
+    <button id="tab-pisz">Pisz · writing</button>
+  </div>
+  <div class="sect on" id="sect-litery"><div id="litrep"></div></div>
+  <div class="sect" id="sect-pisz"><div id="rep"></div></div>
 </main>
 <script src="engine.js"></script>
 <script src="report.js"></script>
+<script src="litery-report.js"></script>
 <script>
+/* One dashboard for both apps (his call, 7 Oct): the same sync key opens
+   Litery's record and Pisz's, each from its own service.                 */
 (function(){
   'use strict';
-  var SYNC_URL = 'https://pisz-sync.pawlo999.workers.dev';
-  var K = 'pisz.parent.key', LK = 'pisz.parent.lang';
+  var PISZ = 'https://pisz-sync.pawlo999.workers.dev', LITERY = 'https://litery-sync.pawlo999.workers.dev';
+  var K = 'pisz.parent.key', LK = 'pisz.parent.lang', TK = 'pisz.parent.tab';
   var $ = function(id){ return document.getElementById(id); };
-  try{ $('key').value = localStorage.getItem(K) || ''; $('lang').value = localStorage.getItem(LK) || 'pl'; }catch(e){}
+  function store(k, v){ try{ localStorage.setItem(k, v); }catch(e){} }
+  function read(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+  $('key').value = read(K) || ''; $('lang').value = read(LK) || 'pl';
+  function tab(which){
+    ['litery', 'pisz'].forEach(function(t){
+      $('tab-' + t).classList.toggle('on', t === which); $('sect-' + t).classList.toggle('on', t === which);
+    });
+    store(TK, which);
+  }
+  $('tab-litery').addEventListener('click', function(){ tab('litery'); });
+  $('tab-pisz').addEventListener('click', function(){ tab('pisz'); });
+  tab(read(TK) || 'litery');
+
+  function get(base, key){
+    return fetch(base + '/s/' + encodeURIComponent(key)).then(function(r){ return r.json(); })
+      .then(function(d){ if(!d || !Array.isArray(d.log)) throw new Error((d && d.error) || 'bad reply'); return d; });
+  }
+  function cap(s){ s = String(s || '').toLowerCase(); return s.charAt(0).toUpperCase() + s.slice(1); }
+
+  /* the adult is what makes an app work (GraphoGame: g=0.48 with an adult,
+     −0.02 without, McTigue 2020) — so the page starts with what to do      */
+  function together(lit, pisz, lang){
+    var host = $('tletters'); host.textContent = '';
+    var L = lit ? window.LiteryReport.learning(lit.mastery || {}, lang).slice(0, 3) : [];
+    var P = pisz ? window.Pisz.session(window.Pisz.rebuild(pisz.log), { lang:lang, name:pisz.name, size:5 })
+                     .filter(function(it){ return !it.name && window.Pisz.G[it.g] && window.Pisz.G[it.g].kind !== 'shape'; })
+                     .map(function(it){ return it.g; }).slice(0, 3) : [];
+    var all = L.map(function(x){ return x.toUpperCase(); });
+    P.forEach(function(g){ if(all.indexOf(g) < 0) all.push(g); });
+    if(!all.length){ $('together').style.display = 'none'; return; }
+    var row = document.createElement('div'); row.className = 'letters';
+    all.forEach(function(x){ var s = document.createElement('span'); s.textContent = x; row.appendChild(s); });
+    host.appendChild(document.createTextNode(lang === 'pl' ? 'The letters she is on right now (Polish):' : 'The letters she is on right now (Norwegian):'));
+    host.appendChild(row);
+    var tips = lang === 'pl' ? [
+      'Say the sound, not the name: "sss", not "es". Polish schools start with sounds.',
+      'Play "what starts with…": "What starts like sowa?" — sok, ser, sukienka.',
+      'Let her write one of them with a crayon on paper and show it to you.'
+    ] : [
+      'Si lyden, ikke navnet: "sss", ikke "ess". Norsk skole begynner med lydene.',
+      'Lek "hva begynner med…": "Hva begynner som sol?" — sau, sokk, sykkel.',
+      'La henne skrive en av dem med fargestift på et ark og vise deg.'
+    ];
+    var ul = $('ttips'); ul.textContent = '';
+    tips.forEach(function(t){ var li = document.createElement('li'); li.textContent = t; ul.appendChild(li); });
+    $('together').style.display = '';
+  }
+
   function load(){
-    var key = ($('key').value || '').trim();
-    if(!key){ $('msg').textContent = 'Paste the sync key from the app’s parent settings.'; return; }
-    try{ localStorage.setItem(K, key); localStorage.setItem(LK, $('lang').value); }catch(e){}
+    var key = ($('key').value || '').trim(), lang = $('lang').value;
+    if(!key){ $('msg').textContent = 'Paste the sync key from either app’s parent settings.'; return; }
+    store(K, key); store(LK, lang);
     $('msg').textContent = 'loading…';
-    fetch(SYNC_URL + '/s/' + encodeURIComponent(key))
-      .then(function(r){ return r.json(); })
-      .then(function(d){
-        if(!d || !Array.isArray(d.log)) throw new Error((d && d.error) || 'bad reply');
-        var s = d.settings || {};
-        $('title').textContent = 'How ' + (d.name ? d.name.charAt(0) + d.name.slice(1).toLowerCase() : 'she') + ' is doing';
-        window.PiszReport.render($('rep'), d.log, { lang:$('lang').value, digits:!!s.digits, now:Date.now(),
-          plan:window.Pisz.session(window.Pisz.rebuild(d.log), { lang:$('lang').value, name:d.name, size:s.size || 5, digits:!!s.digits }) });
-        $('msg').textContent = d.log.length + ' rows · last sync ' + (d.updated ? new Date(d.updated).toLocaleString() : '—');
-      })
-      .catch(function(e){ $('msg').textContent = 'Could not load: ' + (e.message || e); });
+    var lit = null, pisz = null, notes = [];
+    Promise.all([
+      get(LITERY, key).then(function(d){ lit = d; }).catch(function(e){ notes.push('Litery: ' + (e.message || e)); }),
+      get(PISZ, key).then(function(d){ pisz = d; }).catch(function(e){ notes.push('Pisz: ' + (e.message || e)); })
+    ]).then(function(){
+      var name = (pisz && pisz.name) || (lit && lit.name) || '';
+      $('title').textContent = 'How ' + (name ? cap(name) : 'she') + ' is doing';
+      if(lit) window.LiteryReport.render($('litrep'), lit, { now:Date.now() });
+      else $('litrep').textContent = 'Could not load Litery.';
+      if(pisz){
+        var s = pisz.settings || {};
+        window.PiszReport.render($('rep'), pisz.log, { lang:lang, digits:!!s.digits, now:Date.now(),
+          plan:window.Pisz.session(window.Pisz.rebuild(pisz.log), { lang:lang, name:pisz.name, size:s.size || 5, digits:!!s.digits }) });
+      } else $('rep').textContent = 'Could not load Pisz.';
+      together(lit, pisz, lang);
+      $('msg').textContent = [lit ? 'Litery ' + lit.log.length + ' rows' : '', pisz ? 'Pisz ' + pisz.log.length + ' rows' : '']
+        .filter(Boolean).join(' · ') + (notes.length ? ' · ' + notes.join(' · ') : '');
+    });
   }
   $('go').addEventListener('click', load);
   $('lang').addEventListener('change', load);

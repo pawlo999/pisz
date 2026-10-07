@@ -3,7 +3,7 @@
 (function () {
 'use strict';
 
-var BUILD = 1;
+var BUILD = 2;
 /* The sync service. The URL is public; the key the parent pastes in is the
    only credential, because there is no login for a four-year-old.        */
 var SYNC_URL = 'https://pisz-sync.pawlo999.workers.dev';
@@ -28,13 +28,14 @@ var WORD = {
        F:['fisk','🐟'], G:['gutt','👦'], H:['hus','🏠'], I:['is','🍦'], J:['jordbær','🍓'],
        K:['katt','🐱'], L:['lys','💡'], M:['mus','🐭'], N:['nese','👃'], O:['ost','🧀'],
        P:['penn','🖊️'], R:['rev','🦊'], S:['sol','☀️'], T:['tog','🚆'], U:['ugle','🦉'],
-       V:['vann','💧'], W:['wienerpølse','🌭'], Y:['sykkel','🚲'], Z:['zebra','🦓'],
+       V:['vann','💧'], W:['wienerpølse','🌭'], Y:['yrke','👷'], Z:['zebra','🦓'],
        /* ærlig (honest) has no picture of its own; the halo face stands in */
        'Æ':['ærlig','😇'], 'Ø':['øre','👂'], 'Å':['åtte','8️⃣'] }
 };
 /* letters the voice is not trusted to say on their own (Litery: iOS is
    silent or wrong on some) — these are only ever heard inside their word */
-var WORD_ONLY = { pl:'', nb:'ØÅY' };
+/* NB y: his call 7 Oct — 'y som i …' is said right, and yrke starts with y */
+var WORD_ONLY = { pl:'', nb:'ØÅ' };
 /* One rule for Polish (his call, 7 Oct): a letter that starts its word is
    "s jak sowa"; one that cannot start a word is "ą jak w słowie wąż".
    Never "jak w wężu" or "jak w koniu": the declined word loses the letter. */

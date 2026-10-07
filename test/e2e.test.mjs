@@ -99,6 +99,8 @@ async function suite(engine) {
        'one rule: "x jak słowo" when the word starts with it, "x jak w słowie …" when it cannot', words.join('|'));
     const nb = await page.evaluate(() => { const a = window.__pisz; a.S.lang = 'nb'; const r = [a.letterPhrase('Æ'), a.prompt('Æ', 'M')]; a.S.lang = 'pl'; return r; });
     ok(nb.join('|') === 'æ som i ærlig|Skriv æ som i ærlig', 'and æ som i ærlig', nb.join('|'));
+    const ny = await page.evaluate(() => { const a = window.__pisz; a.S.lang = 'nb'; const r = [a.letterPhrase('Y'), a.prompt('Y', 'M')]; a.S.lang = 'pl'; return r; });
+    ok(ny.join('|') === 'y som i yrke|Skriv y som i yrke', 'and y som i yrke (his word)', ny.join('|'));
     const sp1 = await speech();
     ok(!sp1.cuts.length && !sp1.dropped.length, 'a whole first sitting: no sentence cut off', JSON.stringify(sp1));
     ok(!errors.length, 'no errors', errors.join(' | '));

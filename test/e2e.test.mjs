@@ -36,7 +36,9 @@ const state = page => page.evaluate(() => {
   return { screen: a.current(), st: a.STEP && a.STEP.st, ready: !!(a.STEP && a.STEP.ready), g: a.STEP && a.STEP.g && a.STEP.g.id,
            item: a.RUN && a.RUN.item.g, rows: a.LOG.length, items: a.SES && a.SES.items.map(i => i.g + ':' + i.steps.join('')) };
 });
-const ready = (page, st, ms = 15000) => until(page, s => { const a = window.__pisz; return a.STEP && a.STEP.ready && (!s || a.STEP.st === s); }, st, ms, 'step ' + st);
+const ready = (page, st, ms = 15000) => until(page, s => { const a = window.__pisz; return a.STEP && a.STEP.ready && !a.STEP.intro && (!s || a.STEP.st === s); }, st, ms, 'step ' + st);
+/* one sitting of exactly these items, started on the first */
+const sitting = (page, items) => page.evaluate(items => { const s = window.__pisz.SES; s.items = items; s.done = {}; window.__pisz.runItem(0); }, items);
 async function enter(page) {
   await page.click('#avatar'); await sleep(2100);
   await page.click('.flag[data-lang="pl"]'); await sleep(300);
@@ -466,17 +468,160 @@ async function suite(engine) {
   }
 
   /* ---------------------------------------------------------------- */
-  console.log('\nshe does not have to wait for the guide');
+  console.log('\nshe does not have to wait for the guide (7 Oct: she started at once, and the pad ignored her)');
   {
-    const { page, errors } = await open(b, { seed: { name: 'ADA', lang: 'pl' }, log: seedLog(SHAPES2) });
+    const { page, errors, said, speech } = await open(b, { seed: { name: 'ADA', lang: 'pl' }, log: seedLog(SHAPES2) });
     await enter(page);
     await runItemOf(page, 'D');
-    await sleep(1500 + 450 + 17 * 60 + 300);           // the intro, then a moment of the demo
-    const before = await page.evaluate(() => window.__pisz.STEP.ready);
+    await sleep(200);                                    // "d jak dom. patrz!" has only just begun
+    const before = await page.evaluate(() => ({ ready: window.__pisz.STEP.ready, intro: window.__pisz.STEP.intro }));
     await draw(page, templateStrokes(P, 'D'));
-    await until(page, () => window.__pisz.STEP && window.__pisz.STEP.st === 'T', null, 4000, 'dots step').catch(() => {});
+    await until(page, () => window.__pisz.STEP && window.__pisz.STEP.st === 'T', null, 6000, 'dots step').catch(() => {});
     const st = await state(page);
-    ok(before === false && st.st === 'T', 'touching the pad during the demo skips it, and that stroke counts', JSON.stringify({ before, st: st.st }));
+    ok(before.ready && before.intro && st.st === 'T', 'a touch while the letter is still being named counts: the road is done, on to the dots', JSON.stringify({ before, st: st.st }));
+    const r = await rowsOf(page, 'D');
+    ok(r.length === 1 && r[0].st === 'R' && r[0].ok === 1, 'and it is logged as her road', JSON.stringify(r));
+    ok(!(await said()).includes('teraz ty!'), 'no "teraz ty!" once she has started', JSON.stringify((await said()).slice(-6)));
+    const sp = await speech();
+    ok(!sp.cuts.length && !sp.dropped.length, 'nothing the app was saying is cut off', JSON.stringify(sp));
+    ok(!errors.length, 'no errors', errors.join(' | '));
+    await page.context().close();
+  }
+  {
+    // the guide goes on drawing while she writes, without its words, and stops when she is done
+    const { page, errors, said } = await open(b, { seed: { name: 'ADA', lang: 'pl' } });
+    await enter(page);
+    await sitting(page, [{ g: 'E', steps: ['R', 'T'] }]);
+    await until(page, () => !!window.__pisz.DEMO_ON, null, 8000, 'the guide drawing');
+    const E = templateStrokes(P, 'E');
+    await draw(page, [E[0]]);
+    const mid = await page.evaluate(() => ({ demo: !!window.__pisz.DEMO_ON, quiet: !!(window.__pisz.DEMO_ON && window.__pisz.DEMO_ON.quiet), i: window.__pisz.STEP.i }));
+    ok(mid.demo && mid.quiet && mid.i === 1, 'her first line counts while the guide is still drawing; the guide goes on, quietly', JSON.stringify(mid));
+    await draw(page, E.slice(1));
+    await until(page, () => window.__pisz.STEP && window.__pisz.STEP.st === 'T', null, 8000, 'dots step');
+    ok(await page.evaluate(() => !window.__pisz.DEMO_ON), 'the road guide stopped when her road was done');
+    ok(!errors.length, 'no errors', errors.join(' | '));
+    await page.context().close();
+  }
+
+  /* ---------------------------------------------------------------- */
+  console.log('\nher first real session, 7 Oct');
+  {
+    // a finger lifted half way round the O: back on the green dot, it carries on
+    const { page, errors, said } = await open(b, { seed: { name: 'ADA', lang: 'pl' } });
+    await enter(page);
+    await sitting(page, [{ g: 'O', steps: ['T'] }]);
+    await ready(page, 'T');
+    const O = templateStrokes(P, 'O')[0], h = Math.round(O.length * 0.45);
+    await draw(page, [O.slice(0, h)]);
+    /* read the guide canvas itself: green where she stopped, not at the start */
+    const lifted = await page.evaluate(() => {
+      const a = window.__pisz, d = a.STEP.dotAt(), s0 = a.STEP.g.strokes[0].pts[0], cv = document.getElementById('guide');
+      const r = cv.getBoundingClientRect(), k = cv.width / r.width, x = cv.getContext('2d');
+      /* beside the centre, where the dot's white number is not */
+      const green = p => { const c = a.toClient(p.x + 5, p.y), px = x.getImageData(Math.round((c.x - r.left) * k), Math.round((c.y - r.top) * k), 1, 1).data;
+                           return px[1] > 120 && px[0] < 80 && px[2] < 120; };
+      return { idx: a.STEP.tr[0].idx, atStop: green(d), atStart: green(s0) };
+    });
+    ok(lifted.idx > 0 && lifted.atStop && !lifted.atStart, 'after the lift the green dot is drawn where she stopped, and no longer at the start', JSON.stringify(lifted));
+    const n0 = (await said()).length;
+    await draw(page, [[{ x: 46, y: 50 }]]);                     // the middle of the O: nowhere
+    await sleep(100);
+    ok((await said()).slice(n0).includes('rysuj dalej od zielonej kropki.'), 'a touch elsewhere: "rysuj dalej od zielonej kropki", not "zacznij"', JSON.stringify((await said()).slice(n0)));
+    await draw(page, [O]);                                       // back to the start dot, and round
+    await until(page, () => window.__pisz.current() !== 'write', null, 8000, 'item end');
+    const r = await rowsOf(page, 'O');
+    ok(r.length === 1 && r[0].ok === 1, 'going back to the start dot, as told, finishes the O', JSON.stringify(r));
+    ok(!errors.length, 'no errors', errors.join(' | '));
+    await page.context().close();
+  }
+  {
+    // the sponge in the dots step: her ink goes, the letter starts again
+    const { page, errors } = await open(b, { seed: { name: 'ADA', lang: 'pl' } });
+    await enter(page);
+    await sitting(page, [{ g: 'E', steps: ['R', 'T'] }]);
+    await ready(page, 'R');
+    ok(await page.evaluate(() => document.getElementById('clear').classList.contains('hide')), 'no sponge on the road');
+    await draw(page, templateStrokes(P, 'E'));
+    await ready(page, 'T');
+    ok(await page.evaluate(() => !document.getElementById('clear').classList.contains('hide')), 'the sponge is there in the dots step');
+    const E = templateStrokes(P, 'E');
+    await draw(page, E.slice(0, 2));
+    await page.evaluate(() => document.getElementById('clear').click());
+    const c = await page.evaluate(() => ({ i: window.__pisz.STEP.i, raw: window.__pisz.STEP.raw.length, idx: window.__pisz.STEP.tr[0].idx, done: window.__pisz.STEP.tr[0].done }));
+    ok(c.i === 0 && c.raw === 0 && c.idx === 0 && !c.done, 'tapping it wipes her two lines and the E starts again from line 1', JSON.stringify(c));
+    await draw(page, E);
+    await until(page, () => window.__pisz.current() !== 'write', null, 8000, 'item end');
+    const row = await page.evaluate(() => window.__pisz.LOG.filter(r => r.g === 'E' && r.st === 'T')[0]);
+    ok(row && row.ok === 1 && row.cl === 1 && P.unpack(row.s).length === 4, 'the dots step is logged with one wipe, and only the clean E is kept', JSON.stringify(row && { cl: row.cl, n: row.n }));
+    ok(!errors.length, 'no errors', errors.join(' | '));
+    await page.context().close();
+  }
+  {
+    // the figure above the pad: only while copying
+    const { page, errors } = await open(b, { seed: { name: 'ADA', lang: 'pl' } });
+    await enter(page);
+    await sitting(page, [{ g: '|', steps: ['C'] }, { g: '-', steps: ['R', 'T'] }]);
+    await ready(page, 'C');
+    const m0 = await page.evaluate(() => document.getElementById('model').classList.contains('on'));
+    await draw(page, templateStrokes(P, '|'));
+    await until(page, () => window.__pisz.current() === 'path', null, 15000, 'back on the path');
+    await page.evaluate(() => window.__pisz.runItem(1));
+    await sleep(150);
+    const m1 = await page.evaluate(() => document.getElementById('model').classList.contains('on'));
+    ok(m0 && !m1, 'after copying "|", the road for "-" no longer shows "|" above the pad', JSON.stringify({ m0, m1 }));
+    ok(!errors.length, 'no errors', errors.join(' | '));
+    await page.context().close();
+  }
+  {
+    // a miss while copying: the guide shows it again, and she may write over it at once
+    const { page, errors, said } = await open(b, { seed: { name: 'ADA', lang: 'pl' }, log: seedLog([...SHAPES2, ['L', 2]]) });
+    await enter(page);
+    await sitting(page, [{ g: 'L', steps: ['C'] }]);
+    await ready(page, 'C');
+    await draw(page, scribble(4, 9).map(s => s.map(p => ({ x: p.x * 0.6, y: p.y }))));
+    await until(page, () => window.__said.includes('popatrz jeszcze raz.'), null, 8000, 'the miss');
+    const live = await page.evaluate(() => window.__pisz.STEP.ready);
+    await draw(page, templateStrokes(P, 'L'));
+    await until(page, () => window.__pisz.current() !== 'write', null, 8000, 'item end');
+    const r = (await rowsOf(page, 'L')).filter(x => x.st === 'C');
+    ok(live && r.map(x => x.st + x.ok).join(' ') === 'C0 C1' && r[1].h === 1, 'right after "popatrz jeszcze raz" she can write it again, and it counts (as helped)', JSON.stringify(r));
+    ok(!errors.length, 'no errors', errors.join(' | '));
+    await page.context().close();
+  }
+  {
+    // ✏️ in her book: a letter she chooses
+    const { page, errors } = await open(b, { seed: { name: 'ADA', lang: 'pl' } });
+    await enter(page);
+    const n0 = await page.evaluate(() => window.__pisz.SES.items.length);
+    await page.click('#tobook'); await sleep(300);
+    await page.evaluate(() => { const cards = [...document.querySelectorAll('#cards .card')]; const ids = window.__pisz.P.allFor('pl', false); cards[ids.indexOf('A')].click(); });
+    await sleep(200);
+    ok(await page.isVisible('#detailwrite'), 'the letter A in her book has a ✏️');
+    await page.click('#detailwrite'); await sleep(300);
+    const r = await page.evaluate(() => ({ screen: window.__pisz.current(), g: window.__pisz.RUN && window.__pisz.RUN.item.g, steps: window.__pisz.RUN && window.__pisz.RUN.item.steps.join(''),
+                                           n: window.__pisz.SES.items.length }));
+    ok(r.screen === 'write' && r.g === 'A' && r.steps === 'RTC' && r.n === n0 + 1, 'tapping it starts A now — road, dots, copy, as a new letter — added to this sitting', JSON.stringify(r));
+    for (const st of ['R', 'T']) { await ready(page, st); await draw(page, templateStrokes(P, 'A')); }
+    await ready(page, 'C'); await draw(page, templateStrokes(P, 'A'));
+    await until(page, () => window.__pisz.current() === 'path', null, 15000, 'back on the path');
+    const rows = await rowsOf(page, 'A');
+    ok(rows.map(x => x.st + x.ok).join(' ') === 'R1 T1 C1', 'her A counts like any letter', JSON.stringify(rows));
+    ok(!errors.length, 'no errors', errors.join(' | '));
+    await page.context().close();
+  }
+  {
+    // after the day's last sitting the ✏️ is not offered; after an earlier one it starts the next sitting
+    const { page, errors } = await open(b, { seed: { name: 'ADA', lang: 'pl', day: '', sessionsToday: 0, maxS: 3 } });
+    await page.evaluate(() => { const a = window.__pisz; a.S.sessionsToday = 3; a.openBook('end'); });
+    await page.evaluate(() => document.querySelector('#cards .card').click()); await sleep(200);
+    ok(!(await page.isVisible('#detailwrite')), 'after the last sitting of the day: no ✏️');
+    await page.evaluate(() => { document.getElementById('detail').classList.remove('on'); const a = window.__pisz; a.S.sessionsToday = 1; a.openBook('end'); });
+    await page.evaluate(() => { const cards = [...document.querySelectorAll('#cards .card')]; const ids = window.__pisz.P.allFor('pl', false); cards[ids.indexOf('A')].click(); });
+    await sleep(200);
+    await page.click('#detailwrite'); await sleep(300);
+    const r = await page.evaluate(() => ({ g: window.__pisz.RUN && window.__pisz.RUN.item.g, first: window.__pisz.SES.items[0].g, dup: window.__pisz.SES.items.filter(x => x.g === 'A').length }));
+    ok(r.g === 'A' && r.first === 'A' && r.dup === 1, 'after an earlier sitting: the next sitting starts, with her A first', JSON.stringify(r));
     ok(!errors.length, 'no errors', errors.join(' | '));
     await page.context().close();
   }

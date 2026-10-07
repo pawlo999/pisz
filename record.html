@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#14161c">
+<title>Nagraj głoski — Litery + Pisz</title>
+<style>
+  :root{color-scheme:dark}
+  body{margin:0;background:#14161c;color:#eceff5;font:500 15px/1.45 ui-rounded,system-ui,-apple-system,sans-serif;}
+  main{max-width:760px;margin:0 auto;padding:calc(16px + env(safe-area-inset-top,0px)) 14px 60px;}
+  h1{font-size:21px;margin:4px 0 6px}
+  .note{color:#9aa3b2;font-size:13px;margin:4px 0 12px}
+  .bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:8px 0 14px}
+  input{flex:1;min-width:180px;font:14px ui-monospace,monospace;padding:12px;border-radius:10px;border:1px solid #2b3142;background:#0b0d12;color:#cfd5e1}
+  .tab{background:#262b38;color:#cfd5e1;border:0;border-radius:10px;padding:10px 16px;font-weight:700;font-size:15px}
+  .tab.on{background:#7c5cff;color:#fff}
+  #count{color:#9aa3b2;font-size:13px}
+  .row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #262b38}
+  .ch{width:50px;height:50px;border-radius:12px;background:#eab308;color:#0d0f14;font-weight:800;font-size:24px;
+      display:flex;align-items:center;justify-content:center;flex:none}
+  .row.done .ch{background:#22c55e}
+  .row.same .ch{background:#39415a;color:#cfd5e1}
+  .hint{flex:1;font-size:14px;color:#cfd5e1;min-width:0}
+  .hint small{display:block;color:#9aa3b2;font-size:12px}
+  .btn{width:52px;height:52px;border-radius:50%;border:0;background:#262b38;color:#fff;font-size:20px;flex:none}
+  .btn.rec{background:#b4232f}
+  .btn.rec.live{background:#ef4444;box-shadow:0 0 0 6px #ef444455;animation:pulse 1s infinite}
+  .btn:disabled{opacity:.35}
+  @keyframes pulse{50%{box-shadow:0 0 0 10px #ef444422}}
+  .st{width:24px;text-align:center;flex:none;font-size:18px}
+  #msg{color:#f0b46b;font-size:13px;min-height:18px}
+</style>
+</head>
+<body>
+<main>
+  <button class="tab" id="back" style="margin-bottom:8px">← Back</button>
+  <h1>Nagraj głoski · Ta opp lydene</h1>
+  <div class="note">One voice for every sound, recorded once: both apps play it before the word —
+    "<i>[your g]</i> … jak gęś". Tap ● and say the sound; it stops by itself after 3 s, or tap ■.
+    Silence at the start and end is cut and the loudness is evened out automatically. Listen with ▶;
+    record again if it is not right. Short sounds (b d g p t k) have <b>no vowel after them</b>: "g", not "gy".</div>
+  <div class="bar">
+    <input id="key" type="text" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false"
+           placeholder="sync key (from the app's ⚙)">
+    <button class="tab on" data-lang="pl">🇵🇱 Polski</button>
+    <button class="tab" data-lang="nb">🇳🇴 Norsk</button>
+    <span id="count"></span>
+  </div>
+  <div id="msg"></div>
+  <div id="list"></div>
+</main>
+<script src="sounds.js"></script>
+<script>
+(function(){
+  'use strict';
+  var $ = function(id){ return document.getElementById(id); };
+  var BASE = window.LetterSounds.BASE, SAME = window.LetterSounds.SAME;
+
+  /* [letter, kind, example word]; kind: s short (cannot be held), h hold, v vowel */
+  var LIST = {
+    pl:[['a','v','auto'],['ą','v','wąż'],['b','s','but'],['c','s','cebula'],['ć','s','ćma'],['d','s','dom'],
+        ['e','v','ekran'],['ę','v','ręka'],['f','h','foka'],['g','s','gęś'],['h','h','hipopotam'],['i','v','indyk'],
+        ['j','h','jabłko'],['k','s','kot'],['l','h','lody'],['ł','h','łódka'],['m','h','mama'],['n','h','nos'],
+        ['ń','h','koń'],['o','v','oko'],['ó','v','ósemka'],['p','s','paw'],['r','h','ryba'],['s','h','sowa'],
+        ['ś','h','ślimak'],['t','s','tort'],['u','v','ucho'],['w','h','woda'],['y','v','dym'],['z','h','zebra'],
+        ['ź','h','źrebak'],['ż','h','żaba']],
+    nb:[['a','v','and'],['b','s','ball'],['c','s','cowboy'],['d','s','dør'],['e','v','egg'],['f','h','fisk'],
+        ['g','s','gutt'],['h','h','hus'],['i','v','is'],['j','h','jordbær'],['k','s','katt'],['l','h','lys'],
+        ['m','h','mus'],['n','h','nese'],['o','v','ost'],['p','s','penn'],['r','h','rev'],['s','h','sol'],
+        ['t','s','tog'],['u','v','ugle'],['v','h','vann'],['w','h','wienerpølse'],['y','v','yrke'],['z','h','zebra'],
+        ['æ','v','ærlig'],['ø','v','øre'],['å','v','åtte']]
+  };
+  var HINT = {
+    pl:{ s:'krótko, bez samogłoski po niej — początek „%w”, ucięty przed samogłoską',
+         h:'przeciągnij ok. 1 sekundy — jak w „%w”',
+         v:'sama samogłoska, trochę przeciągnięta — jak w „%w”',
+         same:'tak samo jak %x — nie trzeba nagrywać' },
+    nb:{ s:'kort, uten vokal etter — starten på «%w», stoppet før vokalen',
+         h:'hold lyden ca. ett sekund — som i «%w»',
+         v:'bare vokalen, litt lang — som i «%w»',
+         same:'samme lyd som %x — trenger ikke opptak' }
+  };
+  var EXTRA = { pl:{ c:'jak „ts”', ć:'miękko', ś:'miękko', ź:'miękko', ń:'miękko', h:'jak „chhh”', ł:'jak krótkie „u”', w:'jak „vvv”', r:'kilka uderzeń języka' },
+                nb:{ r:'kort r, kan gjentas', o:'o som i «sol»' } };
+
+  var lang = 'pl', index = {}, AC = null;
+  function ctx(){ AC = AC || new (window.AudioContext || window.webkitAudioContext)(); if(AC.state === 'suspended'){ var p = AC.resume(); if(p && p.catch) p.catch(function(){}); } return AC; }
+  try{
+    var k = (JSON.parse(localStorage.getItem('pisz.child.v1') || '{}').syncKey) ||
+            (JSON.parse(localStorage.getItem('litery.child.v2') || '{}').syncKey) ||
+            localStorage.getItem('pisz.parent.key') || '';
+    $('key').value = k;
+  }catch(e){}
+  function key(){ return ($('key').value || '').trim(); }
+  function say(t){ $('msg').textContent = t || ''; }
+
+  function loadIndex(){
+    if(!key()){ say('Paste the sync key first.'); paint(); return; }
+    try{ localStorage.setItem('pisz.parent.key', key()); }catch(e){}
+    fetch(BASE + encodeURIComponent(key())).then(function(r){ return r.json(); })
+      .then(function(ix){ if(ix && !ix.error) index = ix; say(''); paint(); })
+      .catch(function(e){ say('Could not reach the sync service: ' + (e.message || e)); paint(); });
+  }
+
+  function paint(){
+    var host = $('list'); host.textContent = '';
+    var done = 0, total = 0;
+    LIST[lang].forEach(function(e){
+      var c = e[0], same = SAME[lang] && SAME[lang][c];
+      var row = document.createElement('div'); row.className = 'row' + (same ? ' same' : '');
+      var ch = document.createElement('div'); ch.className = 'ch'; ch.textContent = c.toUpperCase(); row.appendChild(ch);
+      var h = document.createElement('div'); h.className = 'hint';
+      if(same){
+        h.textContent = HINT[lang].same.replace('%x', same.toUpperCase());
+        row.appendChild(h); host.appendChild(row); return;
+      }
+      total++;
+      var recorded = index[lang] && index[lang][c];
+      if(recorded){ done++; row.classList.add('done'); }
+      h.textContent = HINT[lang][e[1]].replace('%w', e[2]);
+      if(EXTRA[lang][c]){ var sm = document.createElement('small'); sm.textContent = EXTRA[lang][c]; h.appendChild(sm); }
+      row.appendChild(h);
+      var st = document.createElement('div'); st.className = 'st'; st.textContent = recorded ? '✓' : '';
+      var rec = document.createElement('button'); rec.className = 'btn rec'; rec.textContent = '●'; rec.setAttribute('data-letter', c);
+      var play = document.createElement('button'); play.className = 'btn'; play.textContent = '▶'; play.disabled = !recorded;
+      rec.addEventListener('click', function(){ record(c, rec, play, st, row); });
+      play.addEventListener('click', function(){ playIt(c); });
+      row.appendChild(st); row.appendChild(play); row.appendChild(rec);
+      host.appendChild(row);
+    });
+    $('count').textContent = done + ' / ' + total + ' recorded';
+  }
+
+  /* the microphone stays open while the page is: no second permission
+     question, and no start-up delay eating the first sound. Noise
+     suppression is off — it takes "sss", "fff" and "hhh" for noise      */
+  var live = null, MIC = null;
+  function mic(){
+    if(MIC && MIC.active) return Promise.resolve(MIC);
+    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return Promise.reject(new Error('no microphone access in this browser'));
+    return navigator.mediaDevices.getUserMedia({ audio:{ echoCancellation:false, noiseSuppression:false, autoGainControl:false } })
+      .then(function(s){ MIC = s; return s; });
+  }
+  document.addEventListener('visibilitychange', function(){
+    if(document.hidden && MIC && !live){ MIC.getTracks().forEach(function(t){ t.stop(); }); MIC = null; }
+  });
+  function record(c, rec, play, st, row){
+    if(!key()){ say('Paste the sync key first.'); return; }
+    if(live){ live.stop(); return; }                     /* second tap stops */
+    ctx();                                               /* unlock audio inside the tap */
+    mic().then(function(stream){
+      var chunks = [], mr;
+      try{ mr = new MediaRecorder(stream); }catch(e){ say('This browser cannot record: ' + e.message); return; }
+      live = mr;
+      mr.ondataavailable = function(ev){ if(ev.data && ev.data.size) chunks.push(ev.data); };
+      mr.onstop = function(){
+        live = null; rec.classList.remove('live'); rec.textContent = '●';
+        st.textContent = '…';
+        new Blob(chunks, { type:mr.mimeType || 'audio/mp4' }).arrayBuffer()
+          .then(function(ab){ return decode(ab); })
+          .then(function(buf){ return clean(buf); })
+          .then(function(out){
+            if(!out){ st.textContent = '!'; say('Nothing heard — try again, a little closer.'); return; }
+            return upload(c, out.wav).then(function(at){
+              (index[lang] = index[lang] || {})[c] = at;
+              st.textContent = '✓'; row.classList.add('done'); play.disabled = false;
+              say(''); playBuffer(out.buffer);
+              var n = Object.keys(index[lang]).length; $('count').textContent = n + ' / ' + document.querySelectorAll('.row:not(.same)').length + ' recorded';
+            });
+          })
+          .catch(function(e){ st.textContent = '!'; say('Not saved: ' + (e.message || e)); });
+      };
+      mr.start(); rec.classList.add('live'); rec.textContent = '■';
+      setTimeout(function(){ if(live === mr) mr.stop(); }, 3000);
+    }).catch(function(e){ say('No microphone: ' + (e.message || e) + '. Allow it in Safari when it asks.'); });
+  }
+
+  function decode(ab){
+    return new Promise(function(res, rej){ var p = ctx().decodeAudioData(ab, res, rej); if(p && p.then) p.then(res, rej); });
+  }
+
+  /* cut the silence, even the loudness, fade the ends, 22 kHz mono WAV */
+  function clean(buf){
+    var x = buf.getChannelData(0), sr = buf.sampleRate, n = x.length;
+    if(buf.numberOfChannels > 1){
+      var y = buf.getChannelData(1), m = new Float32Array(n);
+      for(var i = 0; i < n; i++) m[i] = (x[i] + y[i]) / 2;
+      x = m;
+    }
+    var fl = Math.round(sr * 0.01), frames = Math.floor(n / fl), rms = [], mx = 0;
+    for(var f = 0; f < frames; f++){
+      var s = 0; for(var j = f * fl; j < (f + 1) * fl; j++) s += x[j] * x[j];
+      var r = Math.sqrt(s / fl); rms.push(r); if(r > mx) mx = r;
+    }
+    if(mx < 0.01) return Promise.resolve(null);
+    var th = Math.max(0.006, mx * 0.12), a = -1, b = -1;
+    for(var k = 0; k < frames; k++) if(rms[k] >= th){ if(a < 0) a = k; b = k; }
+    if(a < 0 || b - a < 3) return Promise.resolve(null);
+    var start = Math.max(0, (a - 3) * fl), end = Math.min(n, (b + 6) * fl);
+    var seg = x.slice(start, end), peak = 0, sum = 0, cnt = 0;
+    for(var q = 0; q < seg.length; q++) peak = Math.max(peak, Math.abs(seg[q]));
+    for(var u = a; u <= b; u++) if(rms[u] >= th){ sum += rms[u] * rms[u]; cnt++; }
+    /* the same loudness for a hissed "s" and a sung "a": by the sounding
+       part's average, never past the peak                               */
+    var level = Math.sqrt(sum / (cnt || 1));
+    var g = Math.min(0.95 / (peak || 1), 0.16 / (level || 1)), fi = Math.round(sr * 0.008), fo = Math.round(sr * 0.025);
+    for(var z = 0; z < seg.length; z++){
+      var w = g; if(z < fi) w *= z / fi; if(z > seg.length - fo) w *= (seg.length - z) / fo; seg[z] *= w;
+    }
+    var outSr = 22050, len = Math.ceil(seg.length * outSr / sr);
+    var src = ctx().createBuffer(1, seg.length, sr); src.getChannelData(0).set(seg);
+    var off = new (window.OfflineAudioContext || window.webkitOfflineAudioContext)(1, len, outSr);
+    var node = off.createBufferSource(); node.buffer = src; node.connect(off.destination); node.start();
+    return new Promise(function(res){
+      var done = function(out){ res({ buffer:out, wav:wav(out.getChannelData(0), outSr) }); };
+      var p = off.startRendering(); if(p && p.then) p.then(done); else off.oncomplete = function(e){ done(e.renderedBuffer); };
+    });
+  }
+  function wav(d, sr){
+    var b = new ArrayBuffer(44 + d.length * 2), v = new DataView(b);
+    function w(o, t){ for(var i = 0; i < t.length; i++) v.setUint8(o + i, t.charCodeAt(i)); }
+    w(0, 'RIFF'); v.setUint32(4, 36 + d.length * 2, true); w(8, 'WAVE'); w(12, 'fmt '); v.setUint32(16, 16, true);
+    v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, sr, true); v.setUint32(28, sr * 2, true);
+    v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36, 'data'); v.setUint32(40, d.length * 2, true);
+    for(var i = 0; i < d.length; i++) v.setInt16(44 + i * 2, Math.max(-1, Math.min(1, d[i])) * 32767, true);
+    return b;
+  }
+  function upload(c, ab){
+    return fetch(BASE + encodeURIComponent(key()) + '/' + lang + '/' + encodeURIComponent(c), { method:'PUT', body:ab })
+      .then(function(r){ return r.json(); })
+      .then(function(d){ if(!d || !d.ok) throw new Error((d && d.error) || 'bad reply'); return d.at; });
+  }
+  function playBuffer(b){ var s = ctx().createBufferSource(); s.buffer = b; s.connect(ctx().destination); s.start(); }
+  function playIt(c){
+    fetch(BASE + encodeURIComponent(key()) + '/' + lang + '/' + encodeURIComponent(c) + '?v=' + Date.now())
+      .then(function(r){ if(!r.ok) throw new Error('not recorded'); return r.arrayBuffer(); })
+      .then(decode).then(playBuffer).catch(function(e){ say(e.message || String(e)); });
+  }
+
+  Array.prototype.forEach.call(document.querySelectorAll('.tab'), function(t){
+    t.addEventListener('click', function(){
+      lang = t.getAttribute('data-lang');
+      Array.prototype.forEach.call(document.querySelectorAll('.tab'), function(x){ x.classList.toggle('on', x === t); });
+      paint();
+    });
+  });
+  $('key').addEventListener('change', loadIndex);
+  $('back').addEventListener('click', function(){ if(history.length > 1) history.back(); else location.href = './'; });
+  loadIndex();
+  window.__rec = { clean:clean, wav:wav, index:function(){ return index; } };
+})();
+</script>
+</body>
+</html>

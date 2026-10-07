@@ -12,15 +12,26 @@
  *
  * It shares Litery's KV namespace, under "pisz:", so one key pasted into
  * both apps keeps two separate records that can never touch each other.
+ *
+ * It also keeps the letter sounds a parent records (record.html): one short
+ * WAV per letter per language, which both apps play before "jak sowa".
+ *   GET /a/<key>                  which letters exist, with when recorded
+ *   GET /a/<key>/<lang>/<letter>  the sound
+ *   PUT /a/<key>/<lang>/<letter>  a new sound replaces the old one
  */
 
 const PREFIX = 'pisz:';
 const MAX_ROW = 20000;          // bytes; a drawing is ~100-900
 const MAX_ROWS = 100000;        // years of play; refuses runaway posts
+const MAX_SOUND = 200000;       // bytes; a recorded letter is 10-60 KB
+const LETTERS = {
+  pl: 'a ą b c ć d e ę f g h i j k l ł m n ń o ó p r s ś t u w y z ź ż',
+  nb: 'a b c d e f g h i j k l m n o p r s t u v w y z æ ø å',
+};
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+  'Access-Control-Allow-Methods': 'GET,POST,PUT,OPTIONS',
   'Access-Control-Allow-Headers': 'content-type',
   'Access-Control-Max-Age': '86400',
 };
@@ -50,7 +61,8 @@ export default {
   async fetch(request, env) {
     if (request.method === 'OPTIONS') return new Response(null, { headers: CORS });
 
-    const path = new URL(request.url).pathname.split('/').filter(Boolean);
+    const path = new URL(request.url).pathname.split('/').filter(Boolean).map(decodeURIComponent);
+    if (path[0] === 'a') return sound(request, env, path);
     if (path[0] !== 's' || !path[1] || path[1].length < 16) return json({ error: 'bad key' }, 404);
     const key = PREFIX + path[1];
 
@@ -78,3 +90,33 @@ export default {
     return json({ ...next, added: next.log.length - state.log.length });
   },
 };
+
+/* the recorded letter sounds */
+async function sound(request, env, path) {
+  const [, k, lang, letter] = path;
+  if (!k || k.length < 16) return json({ error: 'bad key' }, 404);
+  const indexKey = PREFIX + 'ai:' + k;
+  if (!lang) {
+    if (request.method !== 'GET') return json({ error: 'method' }, 405);
+    return json((await env.STORE.get(indexKey, 'json')) || {});
+  }
+  if (!LETTERS[lang] || !LETTERS[lang].split(' ').includes(letter)) return json({ error: 'no such letter' }, 404);
+  const clipKey = PREFIX + 'a:' + k + ':' + lang + ':' + letter;
+  if (request.method === 'GET') {
+    const buf = await env.STORE.get(clipKey, 'arrayBuffer');
+    if (!buf) return json({ error: 'not recorded' }, 404);
+    return new Response(buf, { headers: { 'content-type': 'audio/wav', 'cache-control': 'no-cache', ...CORS } });
+  }
+  if (request.method !== 'PUT') return json({ error: 'method' }, 405);
+  const buf = await request.arrayBuffer();
+  const b = new Uint8Array(buf);
+  const tag = (o, t) => String.fromCharCode(...b.slice(o, o + 4)) === t;
+  if (buf.byteLength < 44 || buf.byteLength > MAX_SOUND || !tag(0, 'RIFF') || !tag(8, 'WAVE')) {
+    return json({ error: 'not a short WAV' }, 400);
+  }
+  await env.STORE.put(clipKey, buf);
+  const index = (await env.STORE.get(indexKey, 'json')) || {};
+  (index[lang] = index[lang] || {})[letter] = Date.now();
+  await env.STORE.put(indexKey, JSON.stringify(index));
+  return json({ ok: true, lang, letter, at: index[lang][letter] });
+}

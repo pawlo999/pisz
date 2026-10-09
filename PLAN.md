@@ -193,6 +193,15 @@ What he saw, what the log and a replay of her own strokes showed, and his calls:
 | The figure above the pad was not the one asked for | a copy step's figure stayed on into the next item (twice: "−" under "\|", "\" under "o") | the figure shows only in copy and name steps |
 | She wanted her A and could not pick it | 📖 lists every letter but only showed her drawings | ✏️ on a letter's page: in a sitting it joins it; after one it starts the next sitting with her letter first; not after the day's last sitting; steps as for any letter (`P.plan`), counted (4a) |
 
+## 7d · 9 Oct, her second session (15:38–15:50 UTC), and b6
+
+| He saw | Cause | Now |
+|---|---|---|
+| The green dot disappears under her drawing | it was painted on the guide layer, under her ink | its own layer above the ink (guide < ink < dot < guide's drawing) |
+| Speech starting before the last sentence ended | (1) a sentence said while a recorded sound played went out over it at once, and the recording's "jak sowa" was dropped — every letter is a recording since 7 Oct; (2) her taps (the word, a bubble, a page of her book) cut the voice by design | (1) anything said during a recording waits for it and its "jak sowa"; (2) a tap waits for the voice to be free, once — the same tap again is the same request, a tap on something else replaces one still waiting. Only leaving a screen stops the voice. A sentence the iPad itself cuts is logged (`k:'Q'`) and listed in the parent report |
+| Her other fingers on the glass | the first finger down was "the" finger: a resting one blocked her drawing finger, or became a line (and a "start from the dot") | a finger is ink once it moves 8 px, or as a tap under 1 s with no other finger down (dots, accents); resting fingers, and contacts the browser reports wider than 44 px, are never ink; a pen still wins over all touches |
+| The figure above the pad should be replayable | it only drew itself once | a tap on it (🔁 in its corner) writes it again, every time, without words; the pad stays live |
+
 ## 8 · Next
 
 | | Slice | State |
@@ -211,7 +220,7 @@ What he saw, what the log and a replay of her own strokes showed, and his calls:
     node test/engine.test.mjs                 # 68 checks, ~2 min
     node test/worker.test.mjs                 # 25 checks
     PISZ_URL=http://localhost:8791/ node test/e2e.test.mjs   # WebKit + Chromium, ~10 min
-    PISZ_URL=http://localhost:8791/ node test/sounds.test.mjs  # recording + playback, Chromium, 47 checks
+    PISZ_URL=http://localhost:8791/ node test/sounds.test.mjs  # recording + playback, Chromium, 49 checks
 
 WebKit is Playwright's 26.6 build — the engine iPadOS 26 Safari uses —
 running headless without root: its missing libraries were unpacked from

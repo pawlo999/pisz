@@ -38,6 +38,11 @@ export async function open(browser, opts = {}) {
     const next = () => {
       V.cur = V.q.shift() || null;
       if (!V.cur) return;
+      V.cur.onstart && V.cur.onstart();
+      if (window.__failText && V.cur.text === window.__failText) {
+        V.t = setTimeout(() => { const u = V.cur; V.cur = null; window.__cuts.push(u.text); u.onerror && u.onerror({ error: 'interrupted' }); next(); }, 120);
+        return;
+      }
       V.t = setTimeout(() => { const u = V.cur; V.cur = null; u.onend && u.onend(); next(); }, dur(V.cur));
     };
     Object.defineProperty(window, 'speechSynthesis', {
@@ -47,9 +52,12 @@ export async function open(browser, opts = {}) {
         get speaking() { return !!V.cur; }, get pending() { return V.q.length > 0; },
         speak: u => { window.__said.push(u.text); V.q.push(u); if (!V.cur) next(); },
         cancel: () => {
-          if (V.cur) window.__cuts.push(V.cur.text);
-          V.q.forEach(u => window.__dropped.push(u.text));
+          const cur = V.cur, q = V.q;
+          if (cur) window.__cuts.push(cur.text);
+          q.forEach(u => window.__dropped.push(u.text));
           V.q = []; clearTimeout(V.t); V.cur = null;
+          cur && cur.onerror && cur.onerror({ error: 'interrupted' });
+          q.forEach(u => u.onerror && u.onerror({ error: 'canceled' }));
         },
         onvoiceschanged: null,
       },

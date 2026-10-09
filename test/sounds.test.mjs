@@ -176,28 +176,53 @@ console.log('\nPisz plays the recording, then says the word');
   /* the game waits for the recording as it waits for the voice */
   r = await page.evaluate(() => new Promise(res => {
     const a = window.__pisz, t0 = performance.now(); let busyMid = null;
-    a.say(a.letterPhrase('S'), null, true);
+    a.hush(); a.say(a.letterPhrase('S'));
     setTimeout(() => { busyMid = a.voiceBusy(); }, 300);
     a.whenQuiet(() => res({ busyMid, waited: performance.now() - t0, said: window.__saidAt.slice(-1)[0].text }));
   }));
   ok(r.busyMid === true, 'while the recording plays the voice counts as busy');
   ok(r.waited > 1000 && r.said === ' jak sowa', `the next step waits for both (${Math.round(r.waited)} ms)`);
 
-  /* her tap cuts it off like it cuts the voice */
+  /* a sentence the game says while a recording plays waits for it and its "jak sowa"
+     (9 Oct: it used to go out over the recording, and the "jak sowa" was lost)          */
   r = await page.evaluate(() => new Promise(res => {
-    const a = window.__pisz, n = window.__clips.length, stops = window.__stops, said = window.__saidAt.length;
-    a.say(a.letterPhrase('S'), null, true);
+    const a = window.__pisz; a.hush();
+    const n = window.__clips.length, said = window.__saidAt.length;
+    a.say(a.letterPhrase('S'));
+    const iv = setInterval(() => {
+      if (window.__clips.length > n) { clearInterval(iv); const tc = performance.now(); a.say('w bok');
+        setTimeout(() => res({ after: window.__saidAt.slice(said).map(s => ({ text: s.text, at: Math.round(s.t - tc) })) }), 2000); }
+    }, 20);
+  }));
+  ok(r.after.map(x => x.text).join('|') === ' jak sowa|w bok' && r.after[0].at >= 450, 'a sentence arriving during the recording comes after it and its "jak sowa"', JSON.stringify(r));
+
+  /* her tap no longer cuts anything (9 Oct): it waits for the recording and its "jak sowa" */
+  r = await page.evaluate(() => new Promise(res => {
+    const a = window.__pisz; a.hush();
+    const n = window.__clips.length, stops = window.__stops, said = window.__saidAt.length;
+    a.say(a.letterPhrase('S'));
     const iv = setInterval(() => {
       if (window.__clips.length > n) { clearInterval(iv); a.say('hop', null, true);
+        setTimeout(() => res({ stopped: window.__stops > stops, after: window.__saidAt.slice(said).map(s => s.text) }), 2000); }
+    }, 20);
+  }));
+  ok(!r.stopped && r.after.join('|') === ' jak sowa|hop', 'a tap during the recording waits: "[s] jak sowa", then hers', JSON.stringify(r));
+  /* leaving the screen is what stops it */
+  r = await page.evaluate(() => new Promise(res => {
+    const a = window.__pisz; a.hush();
+    const n = window.__clips.length, stops = window.__stops, said = window.__saidAt.length;
+    a.say(a.letterPhrase('S'));
+    const iv = setInterval(() => {
+      if (window.__clips.length > n) { clearInterval(iv); a.hush();
         setTimeout(() => res({ stopped: window.__stops > stops, after: window.__saidAt.slice(said).map(s => s.text) }), 1200); }
     }, 20);
   }));
-  ok(r.stopped && !r.after.includes(' jak sowa'), 'an interrupting sentence stops the recording and drops its "jak sowa"', JSON.stringify(r));
+  ok(r.stopped && !r.after.includes(' jak sowa'), 'leaving the screen stops the recording and drops its "jak sowa"', JSON.stringify(r));
 
   /* a recording that cannot be fetched: the old phrase, never "jak tort" alone */
   r = await page.evaluate(() => new Promise(res => {
     const a = window.__pisz, n = window.__clips.length, said = window.__saidAt.length;
-    a.say(a.letterPhrase('T'), null, true);
+    a.hush(); a.say(a.letterPhrase('T'));
     setTimeout(() => res({ clips: window.__clips.length - n, said: window.__saidAt.slice(said).map(s => s.text) }), 1500);
   }));
   ok(r.clips === 0 && r.said.join('|') === 't jak tort', 'a recording that will not load: the voice says "t jak tort" as before', JSON.stringify(r));
@@ -206,7 +231,7 @@ console.log('\nPisz plays the recording, then says the word');
   r = await page.evaluate(() => new Promise(res => {
     const a = window.__pisz, keep = window.LetterSounds.start, said = window.__saidAt.length;
     window.LetterSounds.start = () => null;
-    a.say(a.letterPhrase('S'), null, true);
+    a.hush(); a.say(a.letterPhrase('S'));
     setTimeout(() => { window.LetterSounds.start = keep; res(window.__saidAt.slice(said).map(s => s.text)); }, 1200);
   }));
   ok(r.join('|') === 's jak sowa', 'audio switched off: the whole phrase from the voice', JSON.stringify(r));
@@ -221,13 +246,13 @@ console.log('\nPisz plays the recording, then says the word');
   ok(r.c === '⁣C⁣' && r.o === '⁣Ø⁣' && r.m === 'Skriv ⁣Ø⁣' && r.a === 'åtte',
      'NB: C plays the K sound, Ø plays its own, Å (not recorded) stays "åtte"', JSON.stringify(r));
   r = await page.evaluate(() => new Promise(res => { const a = window.__pisz; a.S.lang = 'nb'; const said = window.__saidAt.length, n = window.__clips.length;
-    a.say(a.letterPhrase('C'), null, true);
+    a.hush(); a.say(a.letterPhrase('C'));
     setTimeout(() => { a.S.lang = 'pl'; res({ clip: window.__clips.slice(n).map(c => +c.d.toFixed(2)), said: window.__saidAt.slice(said).map(s => s.text) }); }, 1800); }));
   ok(r.clip.join() === '0.3' && r.said.join('|') === ' som i cowboy', '"[k] som i cowboy" — the Norwegian K, though a Polish K exists too', JSON.stringify(r));
 
   /* Norwegian with no recording of its own: the matching Polish consonant */
   const nbSay = id => page.evaluate(id => new Promise(res => { const a = window.__pisz; a.S.lang = 'nb'; const said = window.__saidAt.length, n = window.__clips.length;
-    a.say(a.letterPhrase(id), null, true);
+    a.hush(); a.say(a.letterPhrase(id));
     setTimeout(() => { a.S.lang = 'pl'; res({ clip: window.__clips.slice(n).map(c => +c.d.toFixed(2)).join(), said: window.__saidAt.slice(said).map(s => s.text).join('|') }); }, 1500); }), id);
   r = await nbSay('S');
   ok(r.clip === '0.5' && r.said === ' som i sol', 'NB S plays the Polish S: "[s] som i sol"', JSON.stringify(r));
@@ -253,7 +278,7 @@ console.log('\nPisz plays the recording, then says the word');
   r = await page.evaluate(() => new Promise(res => {
     const a = window.__pisz;
     if (a.letterPhrase('S') !== '⁣S⁣') return res('not marked offline');
-    a.say(a.letterPhrase('S'), null, true);
+    a.hush(); a.say(a.letterPhrase('S'));
     setTimeout(() => res({ clips: window.__clips.length, said: window.__saidAt.map(s => s.text) }), 1500);
   }));
   ok(r.clips === 1 && r.said.join('|') === ' jak sowa', 'with the network gone the recording still plays, from this device', JSON.stringify(r));

@@ -215,6 +215,15 @@ function render(host, log, opt){
       wrap.appendChild(el('div', 'note', fmtDay(P.dayKey(r.t)) + ' · build ' + (r.b || '?') + ' · ' + r.x));
     });
   }
+  /* ---- a sentence the voice did not finish (since b6) ---- */
+  var cut = log.filter(function(r){ return r.k === 'Q'; });
+  if(cut.length){
+    wrap.appendChild(el('h4', null, 'Speech that did not finish (' + cut.length + ')'));
+    wrap.appendChild(el('div', 'note', 'Sentences the voice stopped before their end, or a recording that began while it spoke. There should be none.'));
+    cut.slice(-5).reverse().forEach(function(r){
+      wrap.appendChild(el('div', 'note', fmtDay(P.dayKey(r.t)) + ' · build ' + (r.b || '?') + ' · ' + r.x));
+    });
+  }
   wrap.appendChild(el('div', 'note', log.length + ' rows in the record.'));
 }
 

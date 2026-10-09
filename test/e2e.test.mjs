@@ -505,6 +505,131 @@ async function suite(engine) {
   }
 
   /* ---------------------------------------------------------------- */
+  console.log('\n9 Oct: the dot on top, taps that wait, other fingers, the figure again');
+  {
+    // the green dot is drawn above her ink, so her line can never hide it
+    const { page, errors } = await open(b, { seed: { name: 'ADA', lang: 'pl' } });
+    await enter(page);
+    await sitting(page, [{ g: 'O', steps: ['T'] }]);
+    await ready(page, 'T');
+    const O = templateStrokes(P, 'O')[0];
+    await draw(page, [O.slice(0, Math.round(O.length * 0.45))]);
+    const r = await page.evaluate(() => {
+      const a = window.__pisz, d = a.STEP.dotAt(), kids = [...document.getElementById('pad').children].map(e => e.id);
+      const at = (id, p) => { const cv = document.getElementById(id), rc = cv.getBoundingClientRect(), k = cv.width / rc.width, c = a.toClient(p.x + 5, p.y);
+                              return Array.from(cv.getContext('2d').getImageData(Math.round((c.x - rc.left) * k), Math.round((c.y - rc.top) * k), 1, 1).data); };
+      return { order: kids.indexOf('dot') > kids.indexOf('ink'), dot: at('dot', d), ink: at('ink', d) };
+    });
+    const green = px => px[1] > 120 && px[0] < 80 && px[3] > 200;
+    ok(r.order && green(r.dot), 'the green dot has its own layer, above her ink', JSON.stringify(r));
+    ok(!errors.length, 'no errors', errors.join(' | '));
+    await page.context().close();
+  }
+  {
+    // her taps on the word never cut the voice; four taps are one request
+    const { page, errors, said, speech } = await open(b, { seed: { name: 'ADA', lang: 'pl' }, log: seedLog(SHAPES2) });
+    await enter(page);
+    await runItemOf(page, 'D');
+    await sleep(300);                                            // "d jak dom. patrz!" is playing
+    for (let i = 0; i < 4; i++) { await page.evaluate(() => document.getElementById('word').click()); await sleep(80); }
+    await until(page, () => window.__pisz.STEP && !window.__pisz.STEP.intro, null, 15000, 'intro over');
+    await sleep(2500);
+    const s = await said(), sp = await speech();
+    ok(!sp.cuts.length && !sp.dropped.length, 'four taps on the word while the letter is introduced: nothing is cut', JSON.stringify(sp));
+    ok(s.filter(x => x === 'd jak dom').length === 1, 'and "d jak dom" comes once, after the voice is free', JSON.stringify(s));
+    ok(!errors.length, 'no errors', errors.join(' | '));
+    await page.context().close();
+  }
+  {
+    // her book: tapping card after card never cuts; the last tap replaces one still waiting
+    const { page, errors, said, speech } = await open(b, { seed: { name: 'ADA', lang: 'pl' } });
+    await enter(page);
+    await page.click('#tobook'); await sleep(300);
+    await until(page, () => !window.__pisz.voiceBusy(), null, 8000, 'the voice free');
+    const n0 = (await said()).length;
+    await page.evaluate(() => { const ids = window.__pisz.P.allFor('pl', false), cards = [...document.querySelectorAll('#cards .card')];
+      for (const id of ['A', 'B', 'C']) { cards[ids.indexOf(id)].click(); document.getElementById('detail').classList.remove('on'); } });
+    await sleep(4000);
+    const s = (await said()).slice(n0), sp = await speech();
+    ok(!sp.cuts.length && s.join('|') === 'a jak auto|c jak cebula', 'A, B, C tapped in a row: A is finished, then C (B, still waiting, was replaced)', JSON.stringify({ s, sp }));
+    ok(!errors.length, 'no errors', errors.join(' | '));
+    await page.context().close();
+  }
+  {
+    // a sentence the iPad cuts on its own is written into her log, and shown in the report; our own stop is not
+    const { page, errors } = await open(b, { seed: { name: 'ADA', lang: 'pl' } });
+    await enter(page);
+    await page.evaluate(() => { window.__failText = 'zacznij od zielonej kropki.'; window.__pisz.say('zacznij od zielonej kropki.'); });
+    await sleep(600);
+    await page.evaluate(() => { window.__pisz.say('jeden dwa trzy cztery pięć sześć'); });
+    await sleep(200);
+    await page.evaluate(() => window.__pisz.hush());
+    await sleep(300);
+    const q = await page.evaluate(() => window.__pisz.LOG.filter(r => r.k === 'Q').map(r => r.x));
+    ok(q.length === 1 && /^interrupted \| zacznij od zielonej kropki\.$/.test(q[0]), 'a sentence cut by the iPad is logged (row Q); the one we stopped on leaving is not', JSON.stringify(q));
+    await page.evaluate(() => window.__pisz.openParent()); await sleep(300);
+    await page.click('#statsbtn'); await sleep(400);
+    ok(/Speech that did not finish \(1\)/.test(await page.textContent('#rep')), 'the parent report lists it');
+    ok(!errors.length, 'no errors', errors.join(' | '));
+    await page.context().close();
+  }
+  {
+    // other fingers on the glass: a resting one is not ink, never nags, never blocks her drawing finger
+    const { page, errors, said } = await open(b, { seed: { name: 'ADA', lang: 'pl' } });
+    await enter(page);
+    await sitting(page, [{ g: 'O', steps: ['T'] }, { g: 'L', steps: ['C'] }, { g: 'Ż', steps: ['T'] }]);
+    await ready(page, 'T');
+    const n0 = (await said()).length;
+    const finger = (type, p, id) => page.evaluate(({ type, p, id }) => { const pad = document.getElementById('pad'), c = window.__pisz.toClient(p.x, p.y);
+      pad.dispatchEvent(new PointerEvent(type, { pointerId: id, pointerType: 'touch', isPrimary: false, bubbles: true, cancelable: true, clientX: c.x, clientY: c.y, buttons: type === 'pointerup' ? 0 : 1 })); }, { type, p, id });
+    await finger('pointerdown', { x: 110, y: 120 }, 70);          // the side of her hand, down first, far from the O
+    await draw(page, templateStrokes(P, 'O'));                      // then her finger draws the O
+    await finger('pointerup', { x: 110, y: 120 }, 70);
+    await until(page, () => window.__pisz.current() !== 'write', null, 8000, 'O done');
+    const o = (await rowsOf(page, 'O'))[0], s = (await said()).slice(n0);
+    ok(o && o.ok === 1 && !s.some(x => /zacznij|rysuj dalej/.test(x)), 'a hand resting first does not block her O, and nothing tells her off', JSON.stringify({ o, s }));
+    const w = await page.evaluate(() => window.__pisz.LOG.filter(r => r.g === 'O')[0].w);
+    ok(w === 0, 'and it is not counted as a wrong start', 'w=' + w);
+    // copying L with a finger resting on the glass: no blob of ink from it
+    await page.evaluate(() => window.__pisz.runItem(1));
+    await ready(page, 'C');
+    await finger('pointerdown', { x: 100, y: 10 }, 80);
+    await draw(page, templateStrokes(P, 'L'));
+    const strokes = await page.evaluate(() => window.__pisz.STEP.strokes ? window.__pisz.STEP.strokes.length : -1);
+    await finger('pointerup', { x: 100, y: 10 }, 80);
+    ok(strokes === P.G.L.strokes.length, `only her ${P.G.L.strokes.length} lines are ink, the resting finger none`, 'strokes ' + strokes);
+    await until(page, () => window.__pisz.current() !== 'write', null, 8000, 'L done');
+    // a dot is still a tap: Ż over the dots, its dot tapped
+    await page.evaluate(() => window.__pisz.runItem(2));
+    await ready(page, 'T');
+    await draw(page, templateStrokes(P, 'Ż'));
+    await until(page, () => window.__pisz.current() !== 'write', null, 8000, 'Ż done');
+    ok((await rowsOf(page, 'Ż'))[0].ok === 1, 'a short tap with no other finger down still makes the dot of Ż');
+    ok(!errors.length, 'no errors', errors.join(' | '));
+    await page.context().close();
+  }
+  {
+    // the figure above the pad writes itself again at every tap, without words, and the pad stays hers
+    const { page, errors, said } = await open(b, { seed: { name: 'ADA', lang: 'pl' }, log: seedLog([...SHAPES2, ['L', 2]]) });
+    await enter(page);
+    await sitting(page, [{ g: 'L', steps: ['C'] }]);
+    await ready(page, 'C');
+    const n0 = (await said()).length;
+    await page.click('#model');
+    const d1 = await page.evaluate(() => { const d = window.__pisz.DEMO_ON; window.__d1 = d; return d && { where: d.where, quiet: d.quiet }; });
+    await sleep(300);
+    await page.click('#model');
+    const again = await page.evaluate(() => !!window.__pisz.DEMO_ON && window.__pisz.DEMO_ON !== window.__d1);
+    ok(d1 && d1.where === 'model' && d1.quiet && again, 'a tap on the figure writes it again, and a second tap starts it over', JSON.stringify(d1));
+    ok((await said()).length === n0, 'without a word');
+    await draw(page, templateStrokes(P, 'L'));
+    await until(page, () => window.__pisz.current() !== 'write', null, 8000, 'L done');
+    ok((await rowsOf(page, 'L')).some(r => r.st === 'C' && r.ok === 1), 'and she can copy it meanwhile');
+    ok(!errors.length, 'no errors', errors.join(' | '));
+    await page.context().close();
+  }
+
+  /* ---------------------------------------------------------------- */
   console.log('\nher first real session, 7 Oct');
   {
     // a finger lifted half way round the O: back on the green dot, it carries on
@@ -516,7 +641,7 @@ async function suite(engine) {
     await draw(page, [O.slice(0, h)]);
     /* read the guide canvas itself: green where she stopped, not at the start */
     const lifted = await page.evaluate(() => {
-      const a = window.__pisz, d = a.STEP.dotAt(), s0 = a.STEP.g.strokes[0].pts[0], cv = document.getElementById('guide');
+      const a = window.__pisz, d = a.STEP.dotAt(), s0 = a.STEP.g.strokes[0].pts[0], cv = document.getElementById('dot');
       const r = cv.getBoundingClientRect(), k = cv.width / r.width, x = cv.getContext('2d');
       /* beside the centre, where the dot's white number is not */
       const green = p => { const c = a.toClient(p.x + 5, p.y), px = x.getImageData(Math.round((c.x - r.left) * k), Math.round((c.y - r.top) * k), 1, 1).data;

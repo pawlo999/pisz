@@ -3,7 +3,7 @@
 (function () {
 'use strict';
 
-var BUILD = 5;
+var BUILD = 6;
 /* The sync service. The URL is public; the key the parent pastes in is the
    only credential, because there is no login for a four-year-old.        */
 var SYNC_URL = 'https://pisz-sync.pawlo999.workers.dev';
@@ -236,10 +236,11 @@ if('speechSynthesis' in window){
    sentence (Litery's way) cut 22 of the 37 sentences of one sitting: the
    next instruction arrived before the last had finished — "d jak dom.
    patrz!" was cut by the first stroke's "w dół". Now a sentence waits its
-   turn and the game waits for the voice before it moves on. Only her own
-   taps and leaving a screen interrupt.
+   turn and the game waits for the voice before it moves on. Her taps do not
+   cut it either (9 Oct, his words: "it's interrupting and sounds like bad
+   product") — only leaving a screen does.
    Everything handed to the speaker is lowercase — iOS announces capitals. */
-var VOX = { until:0, last:'', at:0 };
+var VOX = { until:0, last:'', at:0, tapText:'', tapUntil:0, hushAt:0, live:[], trouble:0 };
 function speakMs(text, rate){ return 300 + String(text).length * 62 / (rate || S.rate || 0.7); }
 /* one sentence to the engine, which queues it behind the one playing */
 function utter(text, rate, counted){
@@ -250,9 +251,30 @@ function utter(text, rate, counted){
     var v = VOICE[S.lang];
     if(v){ u.voice = v; u.lang = v.lang; }
     u.rate = rate || S.rate;
+    /* every sentence reports how it ended, so one the iPad cuts short is
+       written into her log (row k:'Q') and shows in the parent report;
+       held in VOX.live, or Safari may drop its events                    */
+    VOX.live.push(u);
+    var gone = function(){ var i = VOX.live.indexOf(u); if(i >= 0) VOX.live.splice(i, 1); };
+    u.onstart = function(){ u.t0 = Date.now(); };
+    u.onerror = function(e){ gone(); speechTrouble(e && e.error || 'error', text, u.t0 ? Date.now() - u.t0 : 0); };
+    u.onend = function(){
+      gone();
+      var ms = u.t0 ? Date.now() - u.t0 : 0, exp = speakMs(text, u.rate);
+      if(u.t0 && exp > 1500 && ms < exp * 0.35) speechTrouble('short', text, ms);
+    };
     speechSynthesis.speak(u);
     if(!counted) VOX.until = Math.max(VOX.until, now) + speakMs(text, u.rate);
     VOX.at = now;
+  }catch(e){}
+}
+function speechTrouble(kind, text, ms){
+  /* our own stop, on leaving a screen, is not trouble */
+  if(Date.now() - VOX.hushAt < 600 && /interrupt|cancel/.test(kind)) return;
+  if(VOX.trouble++ >= 30) return;
+  try{
+    LOG.push({ t:Date.now(), k:'Q', x:(kind + ' | ' + String(text).split(MARK).join('')).slice(0, 140), ms:ms || 0, b:BUILD });
+    saveLog();
   }catch(e){}
 }
 /* A letter whose sound a parent recorded (record.html) travels inside the
@@ -262,34 +284,55 @@ function utter(text, rate, counted){
    queue of its own, so the recording waits for the voice ahead of it and
    the voice waits for the recording.                                    */
 var MARK = '\u2063', CLIP_MS = 700;
-var Q = [], PUMP = { busy:false, t:0, src:null, gen:0 };
-function say(text, rate, interrupt){
+var Q = [], PUMP = { busy:false, t:0, src:null, gen:0, seg:null };
+/* tap: she asked to hear it (the word, a bubble, a page of her book). It
+   waits for the voice to be free instead of cutting it; tapping the same
+   thing again while it waits is the same request, and a tap on something
+   else replaces a request that has not started yet                      */
+function say(text, rate, tap){
   if(!text) return;
   var now = Date.now();
-  if(interrupt) hush();
+  if(tap){
+    if(text === VOX.tapText && now < VOX.tapUntil) return;
+    Q = Q.filter(function(x){ return !x.tap; });
+    Q = Q.concat(partsOf(text, rate, true));
+    VOX.tapText = text; VOX.tapUntil = VOX.until;
+    pump();
+    return;
+  }
   /* the same sentence already waiting or playing: once is enough */
-  else if(text === VOX.last && (VOX.until > now || PUMP.busy)) return;
+  if(text === VOX.last && (VOX.until > now || PUMP.busy)) return;
   VOX.last = text;
-  var parts = String(text).split(MARK);
-  if(parts.length === 1 && !PUMP.busy){ utter(text, rate); return; }
-  parts.forEach(function(p, i){
-    if(i % 2){ Q.push({ id:p, rate:rate }); VOX.until = Math.max(VOX.until, now) + CLIP_MS + speakMs(restOf(p), rate || S.rate); }
-    else if(p.trim()){ Q.push({ text:p, rate:rate }); VOX.until = Math.max(VOX.until, now) + speakMs(p, rate || S.rate); }
-  });
+  if(String(text).indexOf(MARK) < 0 && !PUMP.busy){ utter(text, rate); return; }
+  Q = Q.concat(partsOf(text, rate, false));
   pump();
 }
+function partsOf(text, rate, tap){
+  var now = Date.now(), out = [];
+  String(text).split(MARK).forEach(function(p, i){
+    if(i % 2){ out.push({ id:p, rate:rate, tap:tap }); VOX.until = Math.max(VOX.until, now) + CLIP_MS + speakMs(restOf(p), rate || S.rate); }
+    else if(p.trim()){ out.push({ text:p, rate:rate, tap:tap }); VOX.until = Math.max(VOX.until, now) + speakMs(p, rate || S.rate); }
+  });
+  return out;
+}
 function pump(){
+  /* a recording loading or playing calls pump when it is done: anything
+     said meanwhile waits behind it (9 Oct — it went out over the
+     recording, and the recording's "jak sowa" was lost)                  */
+  if(PUMP.seg) return;
   clearTimeout(PUMP.t);
-  while(Q.length && Q[0].text !== undefined){ var x = Q.shift(); utter(x.text, x.rate, true); }
+  while(Q.length && Q[0].text !== undefined && !Q[0].tap){ var x = Q.shift(); utter(x.text, x.rate, true); }
   if(!Q.length){ PUMP.busy = false; return; }
   PUMP.busy = true;
-  /* the recording waits for the voice ahead of it (not forever: an engine
-     stuck "speaking" must not hold the game)                             */
+  /* a recording, or a sentence she tapped for, waits for the voice ahead
+     of it (not forever: an engine stuck "speaking" must not hold the game) */
   if(engineBusy() && Date.now() < VOX.until + 4000){ PUMP.t = setTimeout(pump, 60); return; }
   var seg = Q.shift(), gen = PUMP.gen, done = false;
+  if(seg.text !== undefined){ utter(seg.text, seg.rate, true); pump(); return; }
+  PUMP.seg = seg;
   function fallback(){
     if(done || gen !== PUMP.gen) return;
-    done = true; utter(plainPhrase(seg.id), seg.rate, true); pump();
+    done = true; PUMP.seg = null; utter(plainPhrase(seg.id), seg.rate, true); pump();
   }
   /* not loaded in time, not recorded after all, or the audio is off: the
      voice says the whole phrase the old way, so she never hears "jak sowa"
@@ -298,20 +341,23 @@ function pump(){
   window.LetterSounds.load(S.lang, seg.id).then(function(buf){
     if(done || gen !== PUMP.gen) return;
     ac();
+    try{ if(speechSynthesis.speaking) speechTrouble('overlap', MARK + seg.id + MARK, 0); }catch(e){}
     var src = window.LetterSounds.start(buf);
     if(!src){ fallback(); return; }
     done = true; clearTimeout(PUMP.t); PUMP.src = src;
     PUMP.t = setTimeout(function(){
       if(gen !== PUMP.gen) return;
-      PUMP.src = null; utter(restOf(seg.id), seg.rate, true); pump();
+      PUMP.src = null; PUMP.seg = null; utter(restOf(seg.id), seg.rate, true); pump();
     }, Math.round(buf.duration * 1000) + 120);
   }, fallback);
 }
+/* leaving a screen: the one thing that stops the voice mid-sentence */
 function hush(){
+  VOX.hushAt = Date.now();
   try{ speechSynthesis.cancel(); }catch(e){}
-  Q = []; PUMP.gen++; clearTimeout(PUMP.t); PUMP.busy = false;
+  Q = []; PUMP.gen++; clearTimeout(PUMP.t); PUMP.busy = false; PUMP.seg = null;
   if(PUMP.src){ try{ PUMP.src.stop(); }catch(e){} PUMP.src = null; }
-  VOX.until = 0; VOX.last = '';
+  VOX.until = 0; VOX.last = ''; VOX.tapText = ''; VOX.tapUntil = 0;
 }
 function engineBusy(){
   if(Date.now() - VOX.at < 250) return true;           /* the engine may not report it yet */
@@ -464,7 +510,9 @@ var DONE_ITEMS_EMOJI = '⭐️';
 var FRAME = { top:-38, bottom:128, w:150 };
 var L = { k:1, ox:0, oy:0, w:0, h:0, dpr:1 };
 var cv = {}, cx = {};
-['guide','ink','fx'].forEach(function(id){ cv[id] = $(id); cx[id] = cv[id].getContext('2d'); });
+/* layers, bottom to top: the guide, her ink, the green dot (it must never
+   disappear under her ink — 9 Oct), the guide's own drawing             */
+['guide','ink','dot','fx'].forEach(function(id){ cv[id] = $(id); cx[id] = cv[id].getContext('2d'); });
 
 function layout(g){
   var pad = $('pad'), r = pad.getBoundingClientRect();
@@ -475,7 +523,7 @@ function layout(g){
   var box = g ? g.box : { cx:50 };
   L.ox = r.width / 2 - box.cx * L.k;
   L.oy = (r.height - hUnits * L.k) / 2 - FRAME.top * L.k;
-  ['guide','ink','fx'].forEach(function(id){
+  ['guide','ink','dot','fx'].forEach(function(id){
     var c = cv[id], W = Math.round(r.width * dpr), H = Math.round(r.height * dpr);
     if(c.width !== W || c.height !== H){ c.width = W; c.height = H; }
     cx[id].setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -581,10 +629,17 @@ function thumb(canvas, id, strokes, opt){
 }
 
 /* ============ input ================================================= */
-/* One finger at a time. A pen, once seen, wins: touches are then a palm.
+/* One finger draws. A pen, once seen, wins: touches are then a palm.
+   Other fingers on the glass are not ink (9 Oct, his words: "she is
+   touching the screen with other fingers"): a finger becomes her line only
+   once it moves, or as a short tap with no other finger down (a dot, an
+   accent); a finger that rests never blocks the one that draws, and is
+   never told "start from the green dot".
    If iPadOS stops sending pointer events (it does after a five-finger
    swipe — WebKit 236390) the touch events take over.                    */
-var IN = { id:null, pen:false, touchMode:false, lastDown:0, moves:0, coal:0, t0:0, rate:0, types:{}, fallback:0 };
+var IN = { id:null, pen:false, touchMode:false, lastDown:0, moves:0, coal:0, t0:0, rate:0, types:{}, fallback:0, rests:0 };
+var CAND = {};                                  /* fingers down that are not ink (yet) */
+var MOVE_PX = 8, TAP_MS = 1000, PALM_PX = 44;
 var pad = $('pad');
 function down(clientX, clientY){
   layoutIfMoved();
@@ -600,58 +655,85 @@ function up(){
   unlock();
   if(STEP && STEP.up) STEP.up();
 }
+function fingerDown(id, x, y, wide){
+  layoutIfMoved();
+  var others = Object.keys(CAND).length > 0 || IN.id !== null;
+  Object.keys(CAND).forEach(function(k){ CAND[k].crowd = true; });
+  CAND[id] = { pts:[{ x:x, y:y }], t0:performance.now(), crowd:others, wide:!!wide };
+}
+function fingerMove(id, x, y){
+  if(id === IN.id){ move(x, y); return; }
+  var c = CAND[id];
+  if(!c || c.wide) return;
+  c.pts.push({ x:x, y:y });
+  if(IN.id === null && Math.hypot(x - c.pts[0].x, y - c.pts[0].y) >= MOVE_PX) ink(id, c);
+}
+/* this finger is her line: from where it first touched, nothing lost */
+function ink(id, c){
+  delete CAND[id];
+  IN.id = id;
+  down(c.pts[0].x, c.pts[0].y);
+  for(var i = 1; i < c.pts.length; i++) move(c.pts[i].x, c.pts[i].y);
+}
+function fingerUp(id, cancelled){
+  if(id === IN.id){ IN.id = null; up(); return; }
+  var c = CAND[id];
+  if(!c) return;
+  delete CAND[id];
+  /* a short tap with no other finger on the glass: a dot, an accent */
+  if(!cancelled && IN.id === null && !c.crowd && !c.wide && performance.now() - c.t0 < TAP_MS){ ink(id, c); IN.id = null; up(); }
+  else IN.rests++;
+}
 pad.addEventListener('pointerdown', function(e){
   if(IN.touchMode) return;
   IN.types[e.pointerType] = 1;
   if(e.pointerType === 'mouse' && e.button !== 0) return;
   if(e.pointerType === 'pen') IN.pen = true;
   else if(IN.pen && e.pointerType === 'touch') return;
-  if(IN.id !== null) return;
-  IN.id = e.pointerId; IN.lastDown = Date.now();
+  IN.lastDown = Date.now();
   try{ pad.setPointerCapture(e.pointerId); }catch(err){}
   e.preventDefault();
-  down(e.clientX, e.clientY);
+  /* a pen or a mouse never rests on the glass */
+  if(e.pointerType !== 'touch'){ if(IN.id !== null) return; IN.id = e.pointerId; down(e.clientX, e.clientY); return; }
+  fingerDown(e.pointerId, e.clientX, e.clientY, Math.max(e.width || 0, e.height || 0) > PALM_PX);
 });
 pad.addEventListener('pointermove', function(e){
   /* a hovering pen moves without ever going down: no ink */
-  if(IN.touchMode || e.pointerId !== IN.id) return;
+  if(IN.touchMode) return;
+  if(e.pointerId !== IN.id && !CAND[e.pointerId]) return;
   var list = e.getCoalescedEvents ? e.getCoalescedEvents() : null;
-  if(list && list.length){ IN.coal += list.length - 1; for(var i = 0; i < list.length; i++) move(list[i].clientX, list[i].clientY); }
-  else move(e.clientX, e.clientY);
+  if(list && list.length){ IN.coal += list.length - 1; for(var i = 0; i < list.length; i++) fingerMove(e.pointerId, list[i].clientX, list[i].clientY); }
+  else fingerMove(e.pointerId, e.clientX, e.clientY);
 });
-function pointerEnd(e){
-  if(IN.touchMode || e.pointerId !== IN.id) return;
-  IN.id = null;
-  up();
-}
-pad.addEventListener('pointerup', pointerEnd);
-pad.addEventListener('pointercancel', pointerEnd);
+pad.addEventListener('pointerup', function(e){ if(!IN.touchMode) fingerUp(e.pointerId, false); });
+pad.addEventListener('pointercancel', function(e){ if(!IN.touchMode) fingerUp(e.pointerId, true); });
 /* touch: stop the page from scrolling, zooming or showing a loupe, and
    watch for pointer events that never came                               */
 pad.addEventListener('touchstart', function(e){
   e.preventDefault();
+  var wide = function(t){ return 2 * Math.max(t.radiusX || 0, t.radiusY || 0) > PALM_PX; };
   if(!IN.touchMode && IN.id === null && Date.now() - IN.lastDown > 400){
     var t = e.changedTouches[0];
     setTimeout(function(){
       if(IN.touchMode || Date.now() - IN.lastDown < 600) return;
-      IN.touchMode = true; IN.fallback++;
-      IN.tid = t.identifier; down(t.clientX, t.clientY);
+      IN.touchMode = true; IN.fallback++; CAND = {};
+      fingerDown('t' + t.identifier, t.clientX, t.clientY, wide(t));
     }, 120);
     return;
   }
-  if(IN.touchMode && IN.tid === null){ var t2 = e.changedTouches[0]; IN.tid = t2.identifier; down(t2.clientX, t2.clientY); }
+  if(IN.touchMode) Array.prototype.forEach.call(e.changedTouches, function(t){ fingerDown('t' + t.identifier, t.clientX, t.clientY, wide(t)); });
 }, { passive:false });
 pad.addEventListener('touchmove', function(e){
   e.preventDefault();
   if(!IN.touchMode) return;
-  Array.prototype.forEach.call(e.changedTouches, function(t){ if(t.identifier === IN.tid) move(t.clientX, t.clientY); });
+  Array.prototype.forEach.call(e.changedTouches, function(t){ fingerMove('t' + t.identifier, t.clientX, t.clientY); });
 }, { passive:false });
-function touchEnd(e){
-  if(!IN.touchMode) return;
-  Array.prototype.forEach.call(e.changedTouches, function(t){ if(t.identifier === IN.tid){ IN.tid = null; up(); } });
-}
-pad.addEventListener('touchend', touchEnd);
-pad.addEventListener('touchcancel', touchEnd);
+pad.addEventListener('touchend', function(e){
+  if(IN.touchMode) Array.prototype.forEach.call(e.changedTouches, function(t){ fingerUp('t' + t.identifier, false); });
+});
+pad.addEventListener('touchcancel', function(e){
+  if(IN.touchMode) Array.prototype.forEach.call(e.changedTouches, function(t){ fingerUp('t' + t.identifier, true); });
+});
 document.addEventListener('gesturestart', function(e){ e.preventDefault(); });
 /* the child screens never scroll; the parent screens must */
 document.addEventListener('touchmove', function(e){
@@ -858,7 +940,8 @@ function traceStep(id, st){
     clear('guide'); var c = cx.guide;
     lines(c);
     if(st === 'R') road(c, g); else dotted(c, g);
-    if(me.i < tr.length) startDot(c, tr[me.i].s, me.i + 1, 1, tr[me.i].idx);
+    clear('dot');
+    if(me.i < tr.length) startDot(cx.dot, tr[me.i].s, me.i + 1, 1, tr[me.i].idx);
   }
   me.dotAt = function(){ var t = tr[me.i]; return t ? t.s.pts[t.idx] : null; };
   function paintInk(){
@@ -962,7 +1045,7 @@ function freeStep(id, st, opt){
   var me = { st:st, g:g, strokes:[], cur:null, ready:false, judgeT:null, idleT:null, tries:0,
              helped:false, last:null, opt:opt };
   function paintGuide(){
-    clear('guide'); lines(cx.guide);
+    clear('guide'); clear('dot'); lines(cx.guide);
     if(me.overlay){
       cx.guide.save(); cx.guide.globalAlpha = 0.18;
       g.strokes.forEach(function(s){ inkStroke(cx.guide, s.pts, '#000', 9); });
@@ -1093,9 +1176,9 @@ var DEMO = 0, DEMO_ON = null;
 function cancelDemo(){ DEMO++; DEMO_ON = null; FX = null; clear('fx'); }
 /* she may write while the guide draws (7 Oct): it then goes on without
    its words (DEMO_ON.quiet), and stops when her step is done           */
-function demo(id, where, done){
+function demo(id, where, done, quiet){
   var g = G[id], i = 0, ticket = ++DEMO;
-  DEMO_ON = { t0:performance.now(), where:where, done:done };
+  DEMO_ON = { t0:performance.now(), where:where, done:done, quiet:!!quiet };
   if(where === 'pad') clear('fx');
   (function next(){
     if(ticket !== DEMO) return;
@@ -1209,6 +1292,15 @@ $('watch').addEventListener('click', function(){
   demo(id, 'pad', function(){ if(STEP && STEP.relayout) STEP.relayout(); });
 });
 $('clear').addEventListener('click', function(){ unlock(); if(STEP && STEP.clearInk) STEP.clearInk(); });
+/* the figure above the pad writes itself again at every tap (his ask,
+   9 Oct), quietly — the pad stays hers meanwhile                        */
+$('model').addEventListener('click', function(){
+  unlock();
+  if(!STEP || !STEP.g || !$('model').classList.contains('on')) return;
+  var g = STEP.g;
+  STEP.intro = false;                         /* it replaces an intro still running */
+  demo(g.id, 'model', function(){ if(STEP && STEP.g === g) paintModel(g); }, true);
+});
 $('wback').addEventListener('click', function(){
   unlock();
   if(STEP){ clearTimeout(STEP.idleT); clearTimeout(STEP.judgeT); }
@@ -1330,7 +1422,7 @@ function requestWake(){
 }
 function releaseWake(){ try{ if(WAKE) WAKE.release(); }catch(e){} WAKE = null; }
 document.addEventListener('visibilitychange', function(){
-  if(document.hidden){ humStop(); hush(); IN.id = null; }
+  if(document.hidden){ humStop(); hush(); IN.id = null; CAND = {}; }
   else if(current() === 'write') requestWake();
 });
 window.addEventListener('resize', function(){ if(current() === 'write' && STEP && STEP.relayout){ lastRect = ''; setTimeout(layoutIfMoved, 60); } });

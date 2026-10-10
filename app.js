@@ -3,7 +3,7 @@
 (function () {
 'use strict';
 
-var BUILD = 6;
+var BUILD = 7;
 /* The sync service. The URL is public; the key the parent pastes in is the
    only credential, because there is no login for a four-year-old.        */
 var SYNC_URL = 'https://pisz-sync.pawlo999.workers.dev';
@@ -71,6 +71,8 @@ var T_ = {
        look:'Popatrz jeszcze raz.', name:'Napisz swoje imię!', nameDone:'To twoje imię!',
        praise:['Brawo!','Super!','Pięknie!','Ekstra!','Ale ładnie!'],
        fromTop:'Od samej góry!', rightWay:'W dobrą stronę!',
+       seeStart:'Zobacz, skąd zaczynamy.', seeWay:'Zobacz, w którą stronę.', first:'Najpierw popatrz!',
+       keep:'Zostawmy tę pierwszą, była ładna.',
        mark:{ k:'A kreska?', p:'A kropka?', o:'A ogonek?', r:'A kółeczko?' },
        mirror:'Prawie! Ta literka patrzy w drugą stronę.',
        end:'Brawo %s!', endSub:'Pokaż mamie albo tacie!', night:'Na dzisiaj koniec. Do jutra!',
@@ -84,6 +86,8 @@ var T_ = {
        look:'Se en gang til.', name:'Skriv navnet ditt!', nameDone:'Det er navnet ditt!',
        praise:['Bra!','Flott!','Kjempebra!','Supert!','Så fint!'],
        fromTop:'Rett fra toppen!', rightWay:'Riktig vei!',
+       seeStart:'Se hvor vi begynner.', seeWay:'Se hvilken vei.', first:'Se først!',
+       keep:'Vi beholder den første, den var fin.',
        mark:{ k:'Og streken?', p:'Og prikken?', o:'Og halen?', r:'Og ringen?' },
        mirror:'Nesten! Den bokstaven snur andre veien.',
        end:'Bra jobba %s!', endSub:'Vis mamma eller pappa!', night:'Det var alt for i dag. Vi ses i morgen!',
@@ -643,8 +647,12 @@ var MOVE_PX = 8, TAP_MS = 1000, PALM_PX = 44;
 var pad = $('pad');
 function down(clientX, clientY){
   layoutIfMoved();
-  /* she is writing: the guide may go on drawing, but without its words */
-  if(STEP && STEP.ready){ STEP.started = true; if(DEMO_ON) DEMO_ON.quiet = true; }
+  /* she is writing: a guide still drawing (the figure on top) goes on
+     without its words. While the guide shows a letter on her pad she
+     watches first (his call, 10 Oct): a touch is not ink, and is answered
+     once with "Najpierw popatrz!" instead of with nothing               */
+  if(STEP && STEP.ready){ if(DEMO_ON) DEMO_ON.quiet = true; }
+  else if(STEP && STEP.watch && !STEP.told){ STEP.told = true; say(tx().first); }
   IN.moves = 0; IN.coal = 0; IN.t0 = performance.now();
   if(STEP && STEP.down) STEP.down(toUnits(clientX, clientY));
 }
@@ -780,7 +788,7 @@ function paintPath(){
     var c = el('canvas'); b.appendChild(c); host.appendChild(b);
     b.addEventListener('click', function(){
       unlock();
-      if(SES.done[i]){ say(it.name ? nm('%s') : letterPhrase(it.g), null, true); return; }
+      if(SES.done[i]){ runAgain(i); return; }
       runItem(i);
     });
     requestAnimationFrame(function(){
@@ -795,13 +803,26 @@ function drawNameThumb(c, name, parts){
   c.width = r.width * dpr; c.height = r.height * dpr;
   var x = c.getContext('2d'); x.setTransform(dpr, 0, 0, dpr, 0, 0);
   x.fillStyle = parts ? INK : 'rgba(80,60,120,.6)';
-  x.font = '800 ' + Math.round(r.height * 0.34) + 'px ui-rounded,system-ui,sans-serif';
+  /* the whole name, as large as fits (10 Oct: five letters were cut off) */
+  var text = name.length > 8 ? name.slice(0, 8) + '…' : name, px = Math.round(r.height * 0.34);
+  x.font = '800 ' + px + 'px ui-rounded,system-ui,sans-serif';
+  var w = x.measureText(text).width;
+  if(w > r.width * 0.9){ px = Math.floor(px * r.width * 0.9 / w); x.font = '800 ' + px + 'px ui-rounded,system-ui,sans-serif'; }
   x.textAlign = 'center'; x.textBaseline = 'middle';
-  x.fillText(name.length > 5 ? name.slice(0, 5) + '…' : name, r.width / 2, r.height / 2);
+  x.fillText(text, r.width / 2, r.height / 2);
 }
 
-function runItem(i){
-  var it = SES.items[i];
+/* a finished letter, once more (his call, 10 Oct: she wanted to make one
+   prettier): its last step again, without the intro. A better try
+   replaces the drawing on her path; a miss is logged with ag:1 and never
+   counts against her                                                    */
+function runAgain(i){
+  var it = SES.items[i], d = SES.done[i] || {};
+  var st = it.name ? 'N' : it.steps.indexOf('M') >= 0 ? 'M' : it.steps.indexOf('C') >= 0 ? 'C' : d.st || 'C';
+  runItem(i, { g:it.g, name:it.name, why:it.why, again:true, steps:[st] });
+}
+function runItem(i, again){
+  var it = again || SES.items[i];
   RUN = { i:i, item:it, steps:it.steps.slice(), si:0, fails:0, helps:0, t0:Date.now() };
   show('write');
   requestWake();
@@ -854,31 +875,31 @@ function startStep(){
   /* the sponge in dots too (his call, 7 Oct: she wants it perfect); the
      road only ever fills where it should, so there is nothing to wipe   */
   $('clear').classList.toggle('hide', st === 'R');
+  $('undo').classList.toggle('hide', st === 'R');
   armWatchdog(STEP);
   /* show before doing: the guide draws it first, unless she already
      writes it from memory (then 👀 is there if she wants it)            */
   var lv = M[id] ? M[id].lv : 0;
-  if(st === 'R' || (st === 'T' && first) || (st === 'C' && first && lv <= 2)){
+  if(!RUN.item.again && (st === 'R' || (st === 'T' && first) || (st === 'C' && first && lv <= 2))){
     /* name it, let the voice finish, then draw it: the first stroke's word
        ("w dół") used to cut the sentence off, so a new letter was never
        introduced by name before she saw it drawn                         */
-    /* ...and she may write while it does (his call, 7 Oct: she started at
-       once and the pad ignored her for 3.5-7 s). Once she has started,
-       the guide goes on drawing without its words, and "Teraz ty!" is
-       not needed                                                        */
+    /* ...and she watches it first: the pad takes ink at "Teraz ty!". On
+       7 Oct the pad was opened during the guide because it ignored her
+       without a word; on 10 Oct he chose watching first after all, now
+       that a touch meanwhile is answered ("Najpierw popatrz!")          */
     var me = STEP;
-    me.ready = true; me.intro = true;
+    me.intro = true; me.watch = true; me.told = false;
     var intro = G[id].kind === 'shape' ? prompt(id, st)
               : (first ? letterPhrase(id) + '. ' : '') + tx().watch;
     say(intro);
     whenQuiet(function(){
-      if(STEP !== me || !me.intro) return;          /* done before the guide began */
+      if(STEP !== me || !me.intro) return;
       demo(id, st === 'C' ? 'model' : 'pad', function(){
         if(STEP !== me) return;
-        me.intro = false;
-        if(!me.started) say(st === 'R' ? tx().turn : st === 'T' ? tx().dots : tx().copy);
+        me.intro = false; me.watch = false; me.ready = true;
+        say(st === 'R' ? tx().turn : st === 'T' ? tx().dots : tx().copy);
       });
-      if(me.started && DEMO_ON) DEMO_ON.quiet = true;
     }, 250);
   } else {
     STEP.ready = true;
@@ -894,6 +915,7 @@ function stepDone(ok, extra){
   cancelDemo(); STEP.intro = false;
   var row = { g:id, st:st, ok:ok ? 1 : 0, ms:Date.now() - STEP.t0 };
   if(extra) for(var k in extra) row[k] = extra[k];
+  if(RUN && RUN.item.again) row.ag = 1;
   /* help during a memory step makes it a copy — that is what it was */
   if(st === 'M' && STEP.helped) row.st = 'C';
   record(row);
@@ -909,8 +931,13 @@ function nextStep(){
 
 function itemDone(){
   var it = RUN.item, id = it.g;
-  SES.done[RUN.i] = { s:RUN.sample || null, parts:RUN.parts || null };
-  if(RUN.sample) SES.samples.push({ g:id, s:RUN.sample });
+  var was = SES.done[RUN.i] || {};
+  SES.done[RUN.i] = { s:RUN.sample || was.s || null, parts:RUN.parts || was.parts || null, st:STEP && STEP.st || was.st };
+  if(RUN.sample){
+    /* once more: the new drawing takes the old one's place on the end screen */
+    var k = it.again ? SES.samples.map(function(x){ return x.g; }).lastIndexOf(id) : -1;
+    if(k >= 0) SES.samples[k] = { g:id, s:RUN.sample }; else SES.samples.push({ g:id, s:RUN.sample });
+  }
   var w = wordOf(id);
   tone([523, 659, 784, 1047]);
   if(!it.name){
@@ -935,7 +962,8 @@ function traceStep(id, st){
     return new P.Tracer(s, { tol:tol, bidir:bidir });
   }
   var tr = g.strokes.map(tracer);
-  var me = { st:st, g:g, tr:tr, i:0, raw:[], cur:null, wrong:0, off:0, idleT:null, ready:false, lifts:0, clears:0 };
+  var me = { st:st, g:g, tr:tr, i:0, raw:[], cur:null, wrong:0, off:0, idleT:null, ready:false, lifts:0, clears:0,
+             undos:0, hist:[] };
   function paintGuide(){
     clear('guide'); var c = cx.guide;
     lines(c);
@@ -971,7 +999,10 @@ function traceStep(id, st){
   me.help = 0;
   me.down = function(p){
     if(!me.ready || me.i >= tr.length) return;
-    var t = tr[me.i], why = t.begin(p);
+    var t = tr[me.i];
+    /* what ↩️ goes back to */
+    me.hist.push({ i:me.i, wrong:me.wrong, t:{ idx:t.idx, done:t.done, s:t.s, bidir:t.bidir, off:t.off, lifts:t.lifts } });
+    var why = t.begin(p);
     me.cur = [p]; me.raw.push(me.cur);
     if(why === 'ok'){
       if(t.done){ strokeDone(); return; }
@@ -1015,6 +1046,7 @@ function traceStep(id, st){
       var off = Math.round(tr.reduce(function(a, t){ return a + t.off; }, 0));
       var extra = { e:me.wrong ? 'start' : '', n:me.raw.length, h:me.help ? 1 : 0, w:me.wrong, off:off };
       if(me.clears) extra.cl = me.clears;
+      if(me.undos) extra.un = me.undos;
       /* her own ink over the dots is kept: it is what the end of a first
          sitting has to show, before there is any free writing            */
       if(st === 'T'){ extra.s = P.pack(me.raw.filter(function(s){ return s.length; })); RUN.sample = P.unpack(extra.s); }
@@ -1030,8 +1062,25 @@ function traceStep(id, st){
   me.clearInk = function(){
     if(st !== 'T') return;
     humStop(); clearTimeout(me.idleT);
-    me.cur = null; me.raw = []; me.i = 0; me.clears++;
+    me.cur = null; me.raw = []; me.hist = []; me.i = 0; me.clears++;
     g.strokes.forEach(function(s, i){ tr[i] = tracer(s, i); });
+    paintGuide(); paintInk(); poke();
+  };
+  /* ↩️ (his call, 10 Oct): only her last line goes, and with it whatever
+     progress it made; a finished letter is not undone                  */
+  me.undo = function(){
+    if(st !== 'T' || !me.ready || me.cur || !me.raw.length) return;
+    humStop();
+    me.raw.pop();
+    var h = me.hist.pop();
+    if(h){
+      var t = tr[h.i];
+      t.idx = h.t.idx; t.done = h.t.done; t.s = h.t.s; t.bidir = h.t.bidir; t.off = h.t.off; t.lifts = h.t.lifts;
+      t.down = false; t.last = null;
+      for(var k = h.i + 1; k < tr.length; k++) tr[k] = tracer(g.strokes[k], k);
+      me.i = h.i; me.wrong = h.wrong;
+    }
+    me.undos++;
     paintGuide(); paintInk(); poke();
   };
   poke();
@@ -1043,7 +1092,7 @@ function freeStep(id, st, opt){
   opt = opt || {};
   var g = G[id];
   var me = { st:st, g:g, strokes:[], cur:null, ready:false, judgeT:null, idleT:null, tries:0,
-             helped:false, last:null, opt:opt };
+             helped:false, last:null, opt:opt, undos:0 };
   function paintGuide(){
     clear('guide'); clear('dot'); lines(cx.guide);
     if(me.overlay){
@@ -1063,9 +1112,8 @@ function freeStep(id, st, opt){
   me.down = function(p){
     if(!me.ready) return;
     clearTimeout(me.judgeT); clearTimeout(me.idleT);
-    /* her missed try stays to compare while the guide shows it again,
-       until she writes again                                            */
-    if(me.stale){ me.stale = false; me.strokes = []; paintInk(); }
+    /* the missed try goes when she writes again, even if its replay was cut short */
+    if(me.reset){ me.reset = false; me.strokes = []; paintInk(); }
     me.cur = [p]; me.strokes.push(me.cur);
     inkStroke(cx.ink, me.cur, INK, 8);
   };
@@ -1099,22 +1147,50 @@ function freeStep(id, st, opt){
   function success(r){
     me.ready = false; clearTimeout(me.idleT);
     var packed = P.pack(me.strokes);
-    var row = stepDone(true, { e:r.errors.join(','), sc:r.score, n:me.strokes.length, s:packed, h:me.helped ? 1 : 0 });
+    var row = stepDone(true, { e:r.errors.join(','), sc:r.score, n:me.strokes.length, s:packed, h:me.helped ? 1 : 0,
+                               un:me.undos || undefined });
     RUN.sample = P.unpack(packed);
     if(opt.onDone){ opt.onDone(true, packed); return; }
-    var good = r.errors.indexOf('start') < 0 && r.errors.indexOf('dir') < 0;
-    say(good && Math.random() < 0.6 ? pick([tx().fromTop, tx().rightWay]) + ' ' + pick(tx().praise) : pick(tx().praise));
+    var wrongStart = r.errors.indexOf('start') >= 0, wrongWay = r.errors.indexOf('dir') >= 0;
     tone([660, 880]);
-    nextStep();
+    if(!wrongStart && !wrongWay){
+      say(Math.random() < 0.6 ? pick([tx().fromTop, tx().rightWay]) + ' ' + pick(tx().praise) : pick(tx().praise));
+      nextStep();
+      return;
+    }
+    /* right, but begun in the wrong place or drawn the wrong way: it
+       counts, and the line in question is drawn again the right way
+       (his call 1a, 10 Oct — show, never reject; Berninger 1997)       */
+    var i = wrongStart ? 0 : Math.max(0, (r.dir || []).indexOf(false));
+    say(pick(tx().praise) + ' ' + (wrongStart ? tx().seeStart : tx().seeWay));
+    var where = $('model').classList.contains('on') ? 'model' : 'pad';
+    me.watch = true; me.told = true;                 /* no figure tap or 👀 can cut it short */
+    whenQuiet(function(){
+      if(STEP !== me) return;
+      demoStroke(g, i, where, function(){
+        if(STEP !== me) return;
+        if(where === 'model') paintModel(g); else setTimeout(function(){ clear('fx'); }, 400);
+        me.watch = false;
+        nextStep();
+      }, true);
+    }, 150);
   }
   function fail(r){
     if(STEP !== me) return;
     me.ready = false; clearTimeout(me.idleT); clearTimeout(me.judgeT);
     me.tries++;
     stepDone(false, { e:(r && r.errors || []).join(','), sc:r ? r.score : 0, n:me.strokes.length,
-                      s:P.pack(me.strokes), other:r && r.other || undefined });
+                      s:P.pack(me.strokes), other:r && r.other || undefined, un:me.undos || undefined });
     var mirror = r && r.errors.indexOf('mirror') >= 0;
     if(me.tries >= 2 && opt.onDone){ opt.onDone(false, P.pack(me.strokes)); return; }
+    if(me.tries >= 2 && RUN.item.again){
+      /* once more did not come out: her first one stays, back to the path —
+         without praise for the miss                                       */
+      say(tx().keep);
+      var cur = RUN;
+      whenQuiet(function(){ if(RUN !== cur) return; STEP = null; RUN = null; paintPath(); show('path'); }, 600);
+      return;
+    }
     if(me.tries >= 2){
       /* twice not there: trace it over the dots instead, and that ends it */
       say(tx().look);
@@ -1124,21 +1200,28 @@ function freeStep(id, st, opt){
     }
     say(mirror ? tx().mirror : tx().look);
     me.overlay = true; paintGuide();
-    /* the pad stays live while the guide shows it again (his call, 7 Oct) */
-    me.helped = true; me.markSaid = false; me.stale = true; me.started = false;
-    me.ready = true; me.t0 = Date.now();
+    /* she watches it shown again first (his call, 10 Oct) */
+    me.watch = true; me.told = false; me.reset = true; me.helped = true; me.markSaid = false;
     whenQuiet(function(){
-      if(STEP !== me || !me.ready) return;          /* she wrote it right meanwhile */
+      if(STEP !== me) return;
       demo(id, 'pad', function(){
         if(STEP !== me) return;
-        if(me.stale){ me.stale = false; me.strokes = []; }
+        if(me.reset){ me.reset = false; me.strokes = []; }
         me.overlay = st === 'C' || st === 'N'; paintGuide(); paintInk();
-        if(!me.started) say(tx().again);
+        me.watch = false; me.ready = true; me.t0 = Date.now();
+        say(tx().again);
       });
-      if(me.started && DEMO_ON) DEMO_ON.quiet = true;
     }, 600);
   }
   me.clearInk = function(){ me.strokes = []; clearTimeout(me.judgeT); clearTimeout(me.idleT); paintInk(); };
+  /* ↩️: her last line goes; what is left is looked at again */
+  me.undo = function(){
+    if(!me.ready || me.cur || !me.strokes.length) return;
+    clearTimeout(me.judgeT); clearTimeout(me.idleT);
+    me.strokes.pop(); me.undos++;
+    paintInk();
+    if(me.strokes.length) me.judgeT = setTimeout(check, 650);
+  };
   return me;
 }
 
@@ -1272,7 +1355,7 @@ function startName(){
       whenQuiet(one, 600);
     } });
     STEP.st = 'N'; STEP.t0 = Date.now();
-    $('clear').classList.remove('hide');
+    $('clear').classList.remove('hide'); $('undo').classList.remove('hide');
     STEP.relayout(); paintStrip();
     STEP.ready = true;
     if(i > 0) say(letterPhrase(id));
@@ -1286,19 +1369,24 @@ $('watch').addEventListener('click', function(){
   unlock();
   if(!STEP || !RUN || RUN.item.name && !STEP.g) return;
   var id = STEP.g ? STEP.g.id : RUN.item.g;
+  /* only on a pad that is hers: never over a guide already showing, nor a
+     step that is over                                                  */
+  if(!STEP.ready || STEP.watch) return;
   if(STEP.st === 'M') STEP.helped = true;
-  /* she may go on writing while it plays; it replaces an intro still running */
-  STEP.intro = false;
-  demo(id, 'pad', function(){ if(STEP && STEP.relayout) STEP.relayout(); });
+  /* she watches it, then carries on (10 Oct) */
+  var me = STEP;
+  me.ready = false; me.watch = true; me.told = false;
+  demo(id, 'pad', function(){ if(STEP !== me) return; me.watch = false; me.ready = true; if(me.relayout) me.relayout(); });
 });
 $('clear').addEventListener('click', function(){ unlock(); if(STEP && STEP.clearInk) STEP.clearInk(); });
+$('undo').addEventListener('click', function(){ unlock(); if(STEP && STEP.undo) STEP.undo(); });
 /* the figure above the pad writes itself again at every tap (his ask,
    9 Oct), quietly — the pad stays hers meanwhile                        */
 $('model').addEventListener('click', function(){
   unlock();
-  if(!STEP || !STEP.g || !$('model').classList.contains('on')) return;
+  /* not while the guide is still showing it for the first time */
+  if(!STEP || !STEP.g || STEP.watch || !$('model').classList.contains('on')) return;
   var g = STEP.g;
-  STEP.intro = false;                         /* it replaces an intro still running */
   demo(g.id, 'model', function(){ if(STEP && STEP.g === g) paintModel(g); }, true);
 });
 $('wback').addEventListener('click', function(){
@@ -1442,7 +1530,7 @@ setInterval(function(){
   if(!st || st.ready || current() !== 'write'){ STUCK.since = 0; return; }
   if(STUCK.step !== st){ STUCK.step = st; STUCK.since = 0; }
   if(!STUCK.since){ STUCK.since = Date.now(); return; }
-  if(Date.now() - STUCK.since >= 20000){ cancelDemo(); st.ready = true; STUCK.since = 0; }
+  if(Date.now() - STUCK.since >= 20000){ cancelDemo(); st.ready = true; st.intro = false; st.watch = false; STUCK.since = 0; }
 }, 500);
 var errorsToday = 0;
 function noteError(msg){
@@ -1454,7 +1542,7 @@ function noteError(msg){
   /* a guide that died mid-way (the pad is live during it now): end it */
   if(STEP && (!STEP.ready || STEP.intro)){
     var st = STEP;
-    setTimeout(function(){ if(STEP === st && (!st.ready || st.intro)){ cancelDemo(); st.ready = true; st.intro = false; } }, 400);
+    setTimeout(function(){ if(STEP === st && (!st.ready || st.intro)){ cancelDemo(); st.ready = true; st.intro = false; st.watch = false; } }, 400);
   }
 }
 window.addEventListener('error', function(e){ noteError((e.message || 'error') + ' @' + (e.lineno || '?') + ':' + (e.colno || '?')); });

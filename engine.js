@@ -781,7 +781,9 @@ P.rebuild = function(log){
   var M = {};
   /* only glyphs this build knows: a row from a newer build, or a bad one,
      must not become a "letter" nothing can draw                          */
-  log.filter(function(r){ return r && r.g && r.st && G[r.g]; })
+  /* a miss while writing a finished letter once more (ag:1) never counts
+     against her — it was for the pleasure of a prettier one (10 Oct)    */
+  log.filter(function(r){ return r && r.g && r.st && G[r.g] && !(r.ag && !r.ok); })
      .slice().sort(function(a, b){ return a.t - b.t; })
      .forEach(function(r){
        var m = M[r.g] || (M[r.g] = { lv:0, n:0, ok:0, last:0, memDays:{}, fails:0,
@@ -923,6 +925,7 @@ P.summary = function(log, now){
   var days = {};
   log.forEach(function(r){
     if(!r || typeof r.t !== 'number') return;
+    if(r.ag && !r.ok) return;                      /* a once-more miss: not counted */
     var d = dayKey(r.t), o = days[d] || (days[d] = { steps:0, ok:0, ms:0, sessions:0, prizes:[] , first:r.t, last:r.t });
     if(r.k === 'S'){ o.sessions++; if(r.x) o.prizes.push(r.x); }
     else if(r.g){ o.steps++; if(r.ok) o.ok++; o.ms += Math.min(r.ms || 0, 120000); }
@@ -930,7 +933,7 @@ P.summary = function(log, now){
   });
   var samples = {};
   log.forEach(function(r){
-    if(r && r.g && r.s && (r.st === 'M' || r.st === 'C' || r.st === 'N')){
+    if(r && r.g && r.s && (r.st === 'M' || r.st === 'C' || r.st === 'N') && !(r.ag && !r.ok)){
       (samples[r.g] = samples[r.g] || []).push(r);
     }
   });

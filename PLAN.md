@@ -202,6 +202,28 @@ What he saw, what the log and a replay of her own strokes showed, and his calls:
 | Her other fingers on the glass | the first finger down was "the" finger: a resting one blocked her drawing finger, or became a line (and a "start from the dot") | a finger is ink once it moves 8 px, or as a tap under 1 s with no other finger down (dots, accents); resting fingers, and contacts the browser reports wider than 44 px, are never ink; a pen still wins over all touches |
 | The figure above the pad should be replayable | it only drew itself once | a tap on it (🔁 in its corner) writes it again, every time, without words; the pad stays live |
 
+## 7e · 10 Oct, after her third session, and b7 (his calls)
+
+- **She watches first** while the guide shows a letter on her pad (a step's
+  first showing, the replay after a miss, 👀): the pad takes ink at "Teraz
+  ty!". A touch meanwhile is answered once, "Najpierw popatrz!". This undoes
+  the 7 Oct "draw during the guide" — watching the movement first is what the
+  research supports (Vinter & Chartrel 2010). The figure on top, replayed at
+  her tap, never blocks the pad.
+- **The right way shown, never rejected (1a):** a copy or memory letter right
+  in shape but begun in the wrong place or drawn the wrong way counts, and she
+  hears "Brawo! Zobacz, skąd zaczynamy." (or "…w którą stronę.") while that
+  line is drawn again — on the figure when it is shown, on her pad in memory.
+  Before b7, 11 of her 29 accepted letters had a wrong start and heard plain
+  praise. Berninger 1997: numbered arrows + memory; Cimpian 2007 / Gunderson
+  2013: process feedback after the attempt.
+- **↩️ (2a)** next to 🧽 takes back only her last line — in dots (with its
+  progress), copy, memory and her name; not on the road. Logged as `un`.
+- **Once more (3a):** a finished bubble on today's path writes that letter
+  again (its last step, no intro). A better try replaces the drawing; misses
+  are logged with `ag:1` and `P.rebuild` ignores them.
+- Her name's bubble fits the whole name (a five-letter name was cut off).
+
 ## 8 · Next
 
 | | Slice | State |
@@ -217,7 +239,7 @@ What he saw, what the log and a replay of her own strokes showed, and his calls:
 ## 9 · Tests
 
     python3 serve.py 8791                     # in one shell
-    node test/engine.test.mjs                 # 68 checks, ~2 min
+    node test/engine.test.mjs                 # 70 checks, ~2 min
     node test/worker.test.mjs                 # 25 checks
     PISZ_URL=http://localhost:8791/ node test/e2e.test.mjs   # WebKit + Chromium, ~10 min
     PISZ_URL=http://localhost:8791/ node test/sounds.test.mjs  # recording + playback, Chromium, 49 checks

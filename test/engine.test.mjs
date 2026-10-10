@@ -236,6 +236,13 @@ const DAY = 86400000, T0 = Date.UTC(2026, 9, 1, 9);
   M = P.rebuild(log); ok(M.L.lv === 3, 'two misses in a row from memory: back to copying');
   const mlog = [{ t: T0, g: 'S', st: 'C', ok: 1 }, { t: T0 + DAY, g: 'S', st: 'M', ok: 0, e: 'mirror' }, { t: T0 + DAY + 1, g: 'S', st: 'M', ok: 0, e: 'mirror' }];
   ok(P.rebuild(mlog).S.lv === 3, 'mirrored attempts are never counted against her');
+  /* 10 Oct: writing a finished letter once more, for a prettier one */
+  const alog = [{ t: T0, g: 'O', st: 'C', ok: 1 }, { t: T0 + 1, g: 'O', st: 'C', ok: 0, e: 'shape', ag: 1 }, { t: T0 + 2, g: 'O', st: 'C', ok: 0, e: 'shape', ag: 1 }];
+  ok(P.rebuild(alog).O.lv === 3 && P.rebuild(alog).O.n === 1, 'misses while writing it once more never count against her');
+  alog.push({ t: T0 + DAY, g: 'O', st: 'M', ok: 1, ag: 1 });
+  ok(P.rebuild(alog).O.lv === 4, 'a good once-more counts like any letter');
+  const sm = P.summary(alog), day0 = sm.days[P.dayKey(T0)];
+  ok(day0.steps === 1 && day0.ok === 1 && sm.samples.O === undefined, 'nor in the parent report: not in steps or % right, no red sample', JSON.stringify(day0));
   const shuffled = log.slice().sort(() => Math.random() - 0.5);
   ok(JSON.stringify(P.rebuild(shuffled)) === JSON.stringify(P.rebuild(log)), 'the order rows arrive in does not matter (two devices merge)');
 }

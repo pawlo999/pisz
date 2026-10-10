@@ -115,6 +115,7 @@
         background:rgba(255,255,255,.92);box-shadow:0 6px 0 var(--line);font-size:34px;}
   .tool:active{transform:translateY(4px);box-shadow:0 2px 0 var(--line);}
   .tool.hide{visibility:hidden;}
+  .toolgroup{display:flex;gap:16px;pointer-events:none;}
   .namestrip{position:absolute;top:10px;left:0;right:0;display:flex;justify-content:center;gap:6px;
              pointer-events:none;z-index:2;}
   .namestrip canvas{width:64px;height:76px;border-radius:12px;background:rgba(0,0,0,.035);}
@@ -259,7 +260,10 @@
   </div>
   <div class="tools">
     <button class="tool" id="watch">👀</button>
-    <button class="tool" id="clear">🧽</button>
+    <div class="toolgroup">
+      <button class="tool" id="undo">↩️</button>
+      <button class="tool" id="clear">🧽</button>
+    </div>
   </div>
 </div>
 

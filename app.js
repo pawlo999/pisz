@@ -3,7 +3,7 @@
 (function () {
 'use strict';
 
-var BUILD = 7;
+var BUILD = 8;
 /* The sync service. The URL is public; the key the parent pastes in is the
    only credential, because there is no login for a four-year-old.        */
 var SYNC_URL = 'https://pisz-sync.pawlo999.workers.dev';
@@ -880,7 +880,7 @@ function startStep(){
   /* show before doing: the guide draws it first, unless she already
      writes it from memory (then 👀 is there if she wants it)            */
   var lv = M[id] ? M[id].lv : 0;
-  if(!RUN.item.again && (st === 'R' || (st === 'T' && first) || (st === 'C' && first && lv <= 2))){
+  if(!RUN.item.again && !RUN.fallback && (st === 'R' || (st === 'T' && first) || (st === 'C' && first && lv <= 2))){
     /* name it, let the voice finish, then draw it: the first stroke's word
        ("w dół") used to cut the sentence off, so a new letter was never
        introduced by name before she saw it drawn                         */
@@ -1050,6 +1050,9 @@ function traceStep(id, st){
       /* her own ink over the dots is kept: it is what the end of a first
          sitting has to show, before there is any free writing            */
       if(st === 'T'){ extra.s = P.pack(me.raw.filter(function(s){ return s.length; })); RUN.sample = P.unpack(extra.s); }
+      /* a road that ends the item (after two missed copies): the letter she
+         filled stands for her drawing on the path and the end screen      */
+      else if(!RUN.sample) RUN.sample = g.strokes.map(function(s){ return s.pts.map(function(p){ return { x:p.x, y:p.y }; }); });
       stepDone(true, extra);
       say(pick(tx().praise));
       nextStep();
@@ -1095,6 +1098,13 @@ function freeStep(id, st, opt){
              helped:false, last:null, opt:opt, undos:0 };
   function paintGuide(){
     clear('guide'); clear('dot'); lines(cx.guide);
+    /* after a first miss: the letter in dots under her next try (his call
+       2b, 10 Oct), each line with its numbered green start and arrow     */
+    if(me.overlay === 'dots'){
+      dotted(cx.guide, g);
+      g.strokes.forEach(function(s, i){ if(!s.dot) startDot(cx.dot, s, i + 1); });
+      return;
+    }
     if(me.overlay){
       cx.guide.save(); cx.guide.globalAlpha = 0.18;
       g.strokes.forEach(function(s){ inkStroke(cx.guide, s.pts, '#000', 9); });
@@ -1180,7 +1190,8 @@ function freeStep(id, st, opt){
     me.ready = false; clearTimeout(me.idleT); clearTimeout(me.judgeT);
     me.tries++;
     stepDone(false, { e:(r && r.errors || []).join(','), sc:r ? r.score : 0, n:me.strokes.length,
-                      s:P.pack(me.strokes), other:r && r.other || undefined, un:me.undos || undefined });
+                      s:P.pack(me.strokes), other:r && r.other || undefined, un:me.undos || undefined,
+                      h:me.helped ? 1 : undefined });
     var mirror = r && r.errors.indexOf('mirror') >= 0;
     if(me.tries >= 2 && opt.onDone){ opt.onDone(false, P.pack(me.strokes)); return; }
     if(me.tries >= 2 && RUN.item.again){
@@ -1192,9 +1203,11 @@ function freeStep(id, st, opt){
       return;
     }
     if(me.tries >= 2){
-      /* twice not there: trace it over the dots instead, and that ends it */
+      /* twice not there: the most help there is — the road, which always
+         finishes the letter (his call 2b, 10 Oct; before, it was the dots) */
       say(tx().look);
-      RUN.steps.splice(RUN.si + 1, RUN.steps.length, 'T');
+      RUN.steps.splice(RUN.si + 1, RUN.steps.length, 'R');
+      RUN.fallback = true;                   /* she has seen it twice: no third demonstration */
       setTimeout(function(){ if(STEP === me) nextStep(); }, 700);
       return;
     }
@@ -1207,7 +1220,9 @@ function freeStep(id, st, opt){
       demo(id, 'pad', function(){
         if(STEP !== me) return;
         if(me.reset){ me.reset = false; me.strokes = []; }
-        me.overlay = st === 'C' || st === 'N'; paintGuide(); paintInk();
+        /* the least help first: dots under her next try — copy, memory
+           (which makes it a helped copy) or her name alike              */
+        me.overlay = 'dots'; paintGuide(); paintInk();
         me.watch = false; me.ready = true; me.t0 = Date.now();
         say(tx().again);
       });

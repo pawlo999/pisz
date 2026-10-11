@@ -41,7 +41,7 @@ own data said the same: thirteen letters at once dropped her to 54% and
     level 0  new         → demo, road, dots, copy   (one item, ~1 minute)
     level 1  traced road → dots, copy
     level 2  traced dots → copy
-    level 3  copied      → from memory, next visit
+    level 3  copied      → from memory, from the next day (copy again the same day)
     level 4  from memory → from memory, spaced out
     level 5  owned       — from memory on two different days
 
@@ -224,6 +224,18 @@ What he saw, what the log and a replay of her own strokes showed, and his calls:
   are logged with `ag:1` and `P.rebuild` ignores them.
 - Her name's bubble fits the whole name (a five-letter name was cut off).
 
+**b8 (his calls 1a, 2b, 10 Oct):**
+- **From memory only on another day** than she last got the letter right; a
+  later sitting that day copies it. On 7 Oct she copied I at 14:35 and wrote
+  it from memory at 14:37 — recall inside short-term memory teaches little.
+- **Help after a miss, least first:** first miss → the guide shows it, then
+  her next try is over the letter in dots (copy, memory — then a helped copy —
+  and her name alike); second miss → the road, which always finishes. Before,
+  the first help was the faint full letter and the second the dots.
+- Her name's strip (the letters she has written, above the pad) was stacked
+  in the top-left corner by the pad's own canvas rule; the cells now sit side
+  by side, centred.
+
 ## 8 · Next
 
 | | Slice | State |
@@ -239,7 +251,7 @@ What he saw, what the log and a replay of her own strokes showed, and his calls:
 ## 9 · Tests
 
     python3 serve.py 8791                     # in one shell
-    node test/engine.test.mjs                 # 70 checks, ~2 min
+    node test/engine.test.mjs                 # 74 checks, ~2 min
     node test/worker.test.mjs                 # 25 checks
     PISZ_URL=http://localhost:8791/ node test/e2e.test.mjs   # WebKit + Chromium, ~10 min
     PISZ_URL=http://localhost:8791/ node test/sounds.test.mjs  # recording + playback, Chromium, 49 checks

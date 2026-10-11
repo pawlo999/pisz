@@ -3,7 +3,7 @@
 (function () {
 'use strict';
 
-var BUILD = 8;
+var BUILD = 9;
 /* The sync service. The URL is public; the key the parent pastes in is the
    only credential, because there is no login for a four-year-old.        */
 var SYNC_URL = 'https://pisz-sync.pawlo999.workers.dev';
@@ -72,7 +72,7 @@ var T_ = {
        praise:['Brawo!','Super!','Pięknie!','Ekstra!','Ale ładnie!'],
        fromTop:'Od samej góry!', rightWay:'W dobrą stronę!',
        seeStart:'Zobacz, skąd zaczynamy.', seeWay:'Zobacz, w którą stronę.', first:'Najpierw popatrz!',
-       keep:'Zostawmy tę pierwszą, była ładna.',
+       keep:'Zostawmy tę pierwszą, była ładna.', finish:'Dokończ literkę!',
        mark:{ k:'A kreska?', p:'A kropka?', o:'A ogonek?', r:'A kółeczko?' },
        mirror:'Prawie! Ta literka patrzy w drugą stronę.',
        end:'Brawo %s!', endSub:'Pokaż mamie albo tacie!', night:'Na dzisiaj koniec. Do jutra!',
@@ -87,7 +87,7 @@ var T_ = {
        praise:['Bra!','Flott!','Kjempebra!','Supert!','Så fint!'],
        fromTop:'Rett fra toppen!', rightWay:'Riktig vei!',
        seeStart:'Se hvor vi begynner.', seeWay:'Se hvilken vei.', first:'Se først!',
-       keep:'Vi beholder den første, den var fin.',
+       keep:'Vi beholder den første, den var fin.', finish:'Gjør ferdig bokstaven!',
        mark:{ k:'Og streken?', p:'Og prikken?', o:'Og halen?', r:'Og ringen?' },
        mirror:'Nesten! Den bokstaven snur andre veien.',
        end:'Bra jobba %s!', endSub:'Vis mamma eller pappa!', night:'Det var alt for i dag. Vi ses i morgen!',
@@ -1145,13 +1145,20 @@ function freeStep(id, st, opt){
     me.last = r;
     if(r.ok){ success(r); return; }
     var expect = g.strokes.length;
+    /* clearly more than a letter's worth of ink: start again */
+    if(me.strokes.length > expect * 2 + 3){ fail(r); return; }
+    /* not finished — her V for a Y (11 Oct): asked once for the rest, and
+       given longer for it, before it counts as a miss                    */
+    if(r.errors.indexOf('unfinished') >= 0){
+      if(!me.askedRest){ me.askedRest = true; say(tx().finish); }
+      me.idleT = setTimeout(function(){ if(STEP === me) fail(me.last); }, 6500);
+      return;
+    }
     if(r.errors.indexOf('mark') >= 0 && !me.markSaid){
       me.markSaid = true;
       var mi = g.mark[0], cue = g.cue[mi];
       say(tx().mark[cue === 'r' && id !== 'Å' ? 'r' : cue] || tx().mark.k);
     }
-    /* clearly more than a letter's worth of ink: start again */
-    if(me.strokes.length > expect * 2 + 3){ fail(r); return; }
     me.idleT = setTimeout(function(){ if(STEP === me) fail(me.last); }, me.strokes.length >= expect ? 4200 : 6500);
   }
   function success(r){
@@ -1214,7 +1221,7 @@ function freeStep(id, st, opt){
     say(mirror ? tx().mirror : tx().look);
     me.overlay = true; paintGuide();
     /* she watches it shown again first (his call, 10 Oct) */
-    me.watch = true; me.told = false; me.reset = true; me.helped = true; me.markSaid = false;
+    me.watch = true; me.told = false; me.reset = true; me.helped = true; me.markSaid = false; me.askedRest = false;
     whenQuiet(function(){
       if(STEP !== me) return;
       demo(id, 'pad', function(){
@@ -1228,7 +1235,7 @@ function freeStep(id, st, opt){
       });
     }, 600);
   }
-  me.clearInk = function(){ me.strokes = []; clearTimeout(me.judgeT); clearTimeout(me.idleT); paintInk(); };
+  me.clearInk = function(){ me.strokes = []; me.askedRest = false; clearTimeout(me.judgeT); clearTimeout(me.idleT); paintInk(); };
   /* ↩️: her last line goes; what is left is looked at again */
   me.undo = function(){
     if(!me.ready || me.cur || !me.strokes.length) return;

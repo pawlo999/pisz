@@ -426,7 +426,16 @@ var FIT_FX = [0.68, 0.8, 0.9, 1, 1.12, 1.26, 1.45];
    "covered" an I and an E passed as a B: at a forgiving tolerance
    everything is near something. 1883 of 3422 wrong-letter pairs passed
    on distance alone.                                                     */
-P.TUNE = { cos:0.6 };
+/* the "is it finished" check (b9). reach: how near one of her line ends
+   or corners must come to each line end of the letter — the same at every
+   level, finished is not a matter of neatness (at 26 and 22, normal and
+   strict passed 5 and 9 points fewer of whole wobbly letters than b8; at
+   30, about 3). merge: line ends of the letter closer than this are one
+   place — 32, so a 4 whose stem starts at the top beside the slant (31
+   apart on the model) is finished. join: hers closer than this are one
+   place. A corner turns more than `turn` (57°) over `arc` units either
+   side.                                                                  */
+P.TUNE = { cos:0.6, reach:30, merge:32, join:10, arc:12, turn:1.0 };
 
 function tangents(pts, k){
   return pts.map(function(p, i){
@@ -618,6 +627,84 @@ function signedArea(pts){
   return a / 2;
 }
 
+/* Where lines begin and end, on the letter and on her ink. A Y's first
+   line ends at its middle; a V drawn instead has no line ending there —
+   only its point at the bottom — however its legs are stretched to look
+   like a Y (11 Oct: "Y is not waiting for lower line to be drawn"). Her
+   corners count as well as her line ends, so a D drawn in one go, or a
+   Y drawn left-line-and-stem then right line, still visits every point.
+   A corner is where her line turns by more than thr over `arc` units
+   either side — along the line, not by point count, so a corner drawn
+   round is still a corner.                                              */
+function turns(pts, arc, thr){
+  var out = [], cum = [0];
+  for(var i = 1; i < pts.length; i++) cum.push(cum[i - 1] + Math.sqrt(d2(pts[i], pts[i - 1])));
+  var lo = 0, hi = 0;
+  for(var j = 0; j < pts.length; j++){
+    while(lo < j && cum[j] - cum[lo + 1] >= arc) lo++;
+    while(hi < pts.length - 1 && cum[hi] - cum[j] < arc) hi++;
+    if(cum[j] - cum[lo] < arc || cum[hi] - cum[j] < arc) continue;
+    var a = pts[lo], b = pts[j], c = pts[hi];
+    var d = Math.abs(Math.atan2(c.y - b.y, c.x - b.x) - Math.atan2(b.y - a.y, b.x - a.x));
+    if(d > Math.PI) d = 2 * Math.PI - d;
+    if(d > thr) out.push(b);
+  }
+  return out;
+}
+function keyPoints(g){
+  var out = [];
+  g.strokes.forEach(function(s, i){
+    if(s.dot || g.mark.indexOf(i) >= 0) return;
+    var a = s.pts[0], b = s.pts[s.pts.length - 1];
+    /* an O has no ends: begun anywhere it is the same O (a wrong start
+       is the formation check's business, not "unfinished"); closed as
+       formation() counts closed                                       */
+    if(dist(a, b) < 12) return;
+    out.push(a, b);
+  });
+  return out;
+}
+/* points gathered into places: each point joins the first place it is
+   within r of                                                          */
+function places(pts, r){
+  var out = [], r2 = r * r;
+  pts.forEach(function(p){
+    for(var i = 0; i < out.length; i++) if(out[i].some(function(q){ return d2(q, p) <= r2; })){ out[i].push(p); return; }
+    out.push([p]);
+  });
+  return out;
+}
+/* the letter's line-end places that none of her line-end or corner places
+   can stand for. One of her places stands for one of the letter's: a V's
+   point at the bottom is the foot of a Y's stem or its middle, not both
+   (11 Oct 16:40, the stretched V's point fell 29 from the middle).      */
+var KP = {};
+function unvisited(V, g){
+  var T = P.TUNE, reach = T.reach, mine = [];
+  V.forEach(function(u){
+    if(!u.length) return;
+    mine.push(u[0], u[u.length - 1]);
+    mine = mine.concat(turns(u, T.arc, T.turn));
+  });
+  var kk = g.id + '|' + T.merge;
+  var K = KP[kk] || (KP[kk] = places(keyPoints(g), T.merge)), M = places(mine, T.join), r2 = reach * reach;
+  var near = K.map(function(k){
+    return M.map(function(m){ return k.some(function(a){ return m.some(function(b){ return d2(a, b) <= r2; }); }); });
+  });
+  var owner = M.map(function(){ return -1; });
+  function take(i, seen){
+    for(var j = 0; j < M.length; j++){
+      if(!near[i][j] || seen[j]) continue;
+      seen[j] = true;
+      if(owner[j] < 0 || take(owner[j], seen)){ owner[j] = i; return true; }
+    }
+    return false;
+  }
+  var gap = [];
+  K.forEach(function(k, i){ if(!take(i, [])) gap.push(k[0]); });
+  return gap;
+}
+
 /* levels of leniency. `gentle` is where a four-year-old starts. */
 P.STRICT = {
   gentle:{ tol:15, minCov:0.72, minPrec:0.74 },
@@ -651,7 +738,28 @@ P.judge = function(strokes, id, strictness, fast){
   res.score = Math.round(f.sc.score * 100);
   var shapeOk = f.sc.minCov >= cfg.minCov && f.sc.prec >= cfg.minPrec;
   res.ok = shapeOk;
-  if(fast) return res;
+
+  /* right in shape, but a line end of the letter that no line end or
+     corner of hers stands for: not finished — the app asks for the rest.
+     Her accent or ogonek stands for nothing of the body (an ogonek put
+     where the right leg of an Ą should end). Rivals too: "she wrote
+     another letter" needs that letter finished. Shapes are not asked;
+     a mirror image is named as one, not as unfinished.                  */
+  var fo = null;
+  function finished(){
+    if(!res.ok || g.kind === 'shape') return;
+    var Vb = f.V;
+    if(g.mark.length){
+      fo = formation(f.V, g, cfg.tol);
+      Vb = f.V.filter(function(u, j){
+        return !g.mark.some(function(mi){ return fo.assign[mi] === j; }) ||
+               fo.assign.some(function(a, ti){ return a === j && g.mark.indexOf(ti) < 0 && !g.strokes[ti].dot; });
+      });
+    }
+    var gap = unvisited(Vb, g);
+    if(gap.length){ res.ok = false; res.errors.push('unfinished'); res.gap = gap.map(function(k){ return { x:Math.round(k.x), y:Math.round(k.y) }; }); }
+  }
+  if(fast){ finished(); return res; }
 
   /* Written as a mirror image? At a tolerance kind enough for a four-year-
      old a backwards B or S can still pass as the letter, so for any letter
@@ -671,7 +779,8 @@ P.judge = function(strokes, id, strictness, fast){
   var bodyOk = f.sc.cov.every(function(c, i){ return g.mark.indexOf(i) >= 0 || c >= cfg.minCov; });
   if(markMiss.length && bodyOk) res.errors.push('mark');
 
-  var fo = formation(f.V, g, cfg.tol);
+  finished();
+  fo = fo || formation(f.V, g, cfg.tol);
   if(!fo.start) res.errors.push('start');
   if(fo.dir.some(function(d){ return !d; })) res.errors.push('dir');
   if(!fo.order) res.errors.push('order');
@@ -696,7 +805,9 @@ function twins(a, b){
 }
 P.verify = function(strokes, id, strictness, candidates){
   var r = P.judge(strokes, id, strictness);
-  if(!r.ok) return r;
+  /* not finished: still asked whether it is another, finished letter —
+     a P for an R, a C for a G — for the parent; she is asked to finish */
+  if(!r.ok && r.errors.indexOf('unfinished') < 0) return r;
   var cache = {}, cfg = P.STRICT[strictness || 'gentle'] || P.STRICT.gentle;
   var rival = null;
   function userFor(c){
@@ -758,7 +869,7 @@ P.unpack = function(packed){
 /* A log row per finished step:
      t   when                 g   glyph id
      st  step: R road, T dots, C copy, M from memory, N name
-     ok  1 passed, 0 not      e   errors, comma list (start,dir,order,mirror,mark,shape,off)
+     ok  1 passed, 0 not      e   errors, comma list (start,dir,order,mirror,mark,shape,unfinished,other,off)
      ms  time on the step     l   language she was playing in
      s   her strokes (copy, memory, name only) — packed
      sc  shape score 0-100

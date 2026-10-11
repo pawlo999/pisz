@@ -36,7 +36,7 @@ var LEVELCOL = ['#4b5263', '#ef4444', '#f97316', '#eab308', '#84cc16', '#22c55e'
 var STEP = { R:'road', T:'dots', C:'copied', M:'memory', N:'name' };
 var ERR = { start:'starts in the wrong place', dir:'goes the wrong way', order:'strokes out of order',
             mirror:'mirrored', mark:'forgot the accent', shape:'shape not there yet', other:'wrote another letter',
-            off:'off the line' };
+            unfinished:'stopped before the end', off:'off the line' };
 
 function el(tag, cls, txt){ var e = document.createElement(tag); if(cls) e.className = cls; if(txt !== undefined) e.textContent = txt; return e; }
 function fmtDay(d){ return d.slice(5).replace('-', '.'); }

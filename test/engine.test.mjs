@@ -249,6 +249,17 @@ const DAY = 86400000, T0 = Date.UTC(2026, 9, 1, 9);
 
 section('what an item asks for');
 {
+  /* 10 Oct: from memory only on another day than she last got it right */
+  const today = Date.UTC(2026, 9, 10, 9), m = (lastOk) => ({ lv: 3, recent: [], lastOk });
+  ok(P.plan(m(today - 60000), { now: today }).join('') === 'C', 'copied right two minutes ago: copy again, not memory');
+  ok(P.plan(m(today - DAY), { now: today }).join('') === 'M', 'copied right yesterday: from memory');
+  ok(P.plan({ lv: 5, recent: [], lastOk: today - 1000 }, { now: today }).join('') === 'C', 'even an owned letter already written today is copied the second time');
+  const midnight = Date.UTC(2026, 9, 11, 0, 3);
+  ok(P.plan(m(midnight - 10 * 60000), { now: midnight }).join('') === 'C', 'across midnight it still waits some hours, not five minutes');
+  const hl = [{ t: T0, g: 'K', st: 'R', ok: 1 }, { t: T0 + 1, g: 'K', st: 'T', ok: 1 }, { t: T0 + 2, g: 'K', st: 'C', ok: 1, h: 1 }];
+  ok(P.rebuild(hl).K.lv === 2, 'a helped copy counts as the dots, not as copying it alone');
+}
+{
   const plan = lv => P.plan(lv === null ? null : { lv, recent: [] });
   ok(plan(null).join() === 'R,T,C', 'something new: road, dots, then copy');
   ok(plan(1).join() === 'T,C' && plan(2).join() === 'C', 'then dots and copy, then copy');

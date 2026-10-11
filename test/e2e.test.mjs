@@ -136,7 +136,7 @@ async function suite(engine) {
     const r = await rowsOf(page, 'D');
     ok(r.map(x => x.st + x.ok).join(' ') === 'R1 T1 C0 C1', 'logged: road, dots, a missed copy, a copy', JSON.stringify(r));
     ok(r[3].h === 1 && r[3].s && r[2].s, 'the copy after help is marked as helped; both drawings are kept');
-    ok(await page.evaluate(() => window.__pisz.M.D.lv) === 3, 'D is now at "copied"');
+    ok(await page.evaluate(() => window.__pisz.M.D.lv) === 2, 'D stays at the dots level: its copy was helped (since b8)');
     const sp = await speech();
     ok(!sp.cuts.length && !sp.dropped.length, 'nothing the app said was cut off or dropped — the voice finishes before the game moves on',
        JSON.stringify(sp));
@@ -574,6 +574,67 @@ async function suite(engine) {
     await until(page, () => window.__pisz.current() === 'path', null, 15000, 'back on the path');
     const ok2 = await page.evaluate(() => window.__pisz.LOG.filter(r => r.g === '|' && r.ag && r.ok).length);
     ok(ok2 === 1, 'a good once-more counts', 'ok rows ' + ok2);
+    ok(!errors.length, 'no errors', errors.join(' | '));
+    await page.context().close();
+  }
+  {
+    // copying, missed twice: dots under the next try, then the road that always finishes (his call 2b)
+    const { page, errors, said } = await open(b, { seed: { name: 'ADA', lang: 'pl' }, log: seedLog([...SHAPES2, ['L', 2]]) });
+    await enter(page);
+    await sitting(page, [{ g: 'L', steps: ['C'] }]);
+    await ready(page, 'C');
+    await draw(page, templateStrokes(P, 'O'));                          // not an L
+    await until(page, () => window.__said.includes('spróbujmy jeszcze raz.'), null, 15000, 'first miss shown again');
+    const o1 = await page.evaluate(() => window.__pisz.STEP.overlay);
+    await draw(page, templateStrokes(P, 'O'));                          // not an L again
+    await until(page, () => window.__pisz.STEP && window.__pisz.STEP.st === 'R', null, 15000, 'the road');
+    const r1 = await page.evaluate(() => ({ steps: window.__pisz.RUN.steps.join(''), model: document.getElementById('model').classList.contains('on') }));
+    ok(o1 === 'dots' && r1.steps === 'CR' && !r1.model, 'first miss: dots under her next try; second miss: the road, without the figure', JSON.stringify({ o1, r1 }));
+    await ready(page, 'R');
+    await draw(page, templateStrokes(P, 'L'));
+    await until(page, () => window.__pisz.current() !== 'write', null, 8000, 'item end');
+    const r = await rowsOf(page, 'L');
+    ok(r.slice(-3).map(x => x.st + x.ok).join(' ') === 'C0 C0 R1', 'logged: two missed copies, then her road', JSON.stringify(r));
+    ok(!errors.length, 'no errors', errors.join(' | '));
+    await page.context().close();
+  }
+  {
+    // from memory, missed twice: dots (with numbered starts) and a helped copy, then the road — no third demo
+    const { page, errors, said } = await open(b, { seed: { name: 'ADA', lang: 'pl' }, log: seedLog([...SHAPES2, ['L', 3]], 3) });
+    await enter(page);
+    await sitting(page, [{ g: 'L', steps: ['M'] }]);
+    await ready(page, 'M');
+    await draw(page, templateStrokes(P, 'O'));
+    await until(page, () => window.__said.includes('spróbujmy jeszcze raz.'), null, 15000, 'first miss shown again');
+    const help = await page.evaluate(() => {
+      const a = window.__pisz, s = a.STEP.g.strokes[0].pts[0], cv = document.getElementById('dot'), rc = cv.getBoundingClientRect(), k = cv.width / rc.width, c = a.toClient(s.x + 5, s.y);
+      const px = cv.getContext('2d').getImageData(Math.round((c.x - rc.left) * k), Math.round((c.y - rc.top) * k), 1, 1).data;
+      return { overlay: a.STEP.overlay, startDot: px[1] > 120 && px[0] < 80 };
+    });
+    const n0 = (await said()).length;
+    await draw(page, templateStrokes(P, 'O'));
+    await until(page, () => window.__pisz.STEP && window.__pisz.STEP.st === 'R' && window.__pisz.STEP.ready, null, 15000, 'the road, at once');
+    const s2 = (await said()).slice(n0);
+    ok(help.overlay === 'dots' && help.startDot && !s2.includes('patrz!') && s2.includes('teraz ty!'), 'memory miss: dots with the numbered green start; second miss: straight to the road, no third demo', JSON.stringify({ help, s2 }));
+    await draw(page, templateStrokes(P, 'L'));
+    await until(page, () => window.__pisz.current() !== 'write', null, 8000, 'item end');
+    const r = await rowsOf(page, 'L');
+    ok(r.slice(-3).map(x => x.st + x.ok + (x.h ? 'h' : '')).join(' ') === 'M0 C0h R1', 'logged: a missed memory, a helped copy missed, the road', JSON.stringify(r.slice(-3)));
+    ok(await page.evaluate(() => !!window.__pisz.SES.done[0].s), 'and her L still shows on the path');
+    ok(!errors.length, 'no errors', errors.join(' | '));
+    await page.context().close();
+  }
+  {
+    // her name: the letters she has written sit side by side above the pad, not stacked in the corner
+    const { page, errors } = await open(b, { seed: { name: 'NADIA', lang: 'pl' } });
+    await enter(page);
+    await sitting(page, [{ g: 'NADIA', steps: ['N'], name: true }]);
+    await until(page, () => window.__pisz.STEP && window.__pisz.STEP.ready, null, 15000, 'name ready');
+    const cells = await page.evaluate(() => [...document.querySelectorAll('#namestrip canvas')].map(c => { const r = c.getBoundingClientRect(); return { x: Math.round(r.left), w: Math.round(r.width) }; }));
+    const pad = await page.evaluate(() => { const r = document.getElementById('pad').getBoundingClientRect(); return { l: r.left, r: r.right }; });
+    const row = cells.length === 5 && cells.every((c, i) => i === 0 || c.x >= cells[i - 1].x + cells[i - 1].w);
+    const centred = Math.abs((cells[0].x - pad.l) - (pad.r - (cells[4].x + cells[4].w))) < 4;
+    ok(row && centred, 'five cells in a row, centred over the pad', JSON.stringify({ cells, pad }));
     ok(!errors.length, 'no errors', errors.join(' | '));
     await page.context().close();
   }

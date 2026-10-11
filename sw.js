@@ -1,7 +1,7 @@
 /* Offline for the published copy. Network-first so a new build lands as soon
    as there is a connection, cache fallback so the home-screen icon still
    opens in the car or at her grandmother's. Same shape as Litery's.       */
-const CACHE  = 'pisz-v7';
+const CACHE  = 'pisz-v8';
 const ASSETS = ['./', './index.html', './app.js', './engine.js', './report.js', './sounds.js', './record.html',
                 './manifest.json', './icon-512.png', './apple-touch-icon.png'];
 

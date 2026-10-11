@@ -118,7 +118,9 @@
   .toolgroup{display:flex;gap:16px;pointer-events:none;}
   .namestrip{position:absolute;top:10px;left:0;right:0;display:flex;justify-content:center;gap:6px;
              pointer-events:none;z-index:2;}
-  .namestrip canvas{width:64px;height:76px;border-radius:12px;background:rgba(0,0,0,.035);}
+  /* not stacked in the corner by the pad's own canvas rule (10 Oct: all her
+     name's letters were drawn on top of each other, top left) */
+  .namestrip canvas{position:relative;inset:auto;width:64px;height:76px;border-radius:12px;background:rgba(0,0,0,.035);}
   .namestrip canvas.cur{box-shadow:0 0 0 3px var(--main);}
 
   .pop{animation:pp .45s;}

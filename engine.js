@@ -789,11 +789,14 @@ P.rebuild = function(log){
        var m = M[r.g] || (M[r.g] = { lv:0, n:0, ok:0, last:0, memDays:{}, fails:0,
                                      errs:{}, recent:[], firstAt:r.t });
        m.n++; m.last = r.t;
-       if(r.ok) m.ok++;
+       if(r.ok){ m.ok++; m.lastOk = r.t; }
        (r.e ? String(r.e).split(',') : []).forEach(function(e){ if(e) m.errs[e] = (m.errs[e] || 0) + 1; });
        m.recent.push({ st:r.st, ok:r.ok ? 1 : 0, e:r.e || '' });
        if(m.recent.length > 6) m.recent.shift();
        var gain = { R:1, T:2, C:3, M:4, N:3 }[r.st] || 0;
+       /* written with help (over the dots after a miss, or after 👀 in a
+          memory step) is not copying it alone: it counts as the dots    */
+       if(r.ok && r.h && (r.st === 'C' || r.st === 'M')) gain = Math.min(gain, 2);
        if(r.ok){
          m.fails = 0;
          if(r.st === 'M'){ m.memDays[dayKey(r.t)] = 1; }
@@ -830,6 +833,12 @@ P.plan = function(m, opt){
     else if(lv === 2) p = ['C'];
     else p = ['M'];
   }
+  /* from memory only on another day than she last got it right (his
+     call, 10 Oct): two minutes after copying it, it is still in her short-
+     term memory and recalling it teaches little (spacing, Vlach 2008).
+     Later sittings that day copy it instead                             */
+  var now = opt.now || Date.now();
+  if(p[0] === 'M' && m && m.lastOk && (dayKey(m.lastOk) === dayKey(now) || now - m.lastOk < 6 * 3600000)) p = ['C'];
   /* starting points and directions keep going wrong: trace once first,
      which is the only step that will not let her do it backwards        */
   if(formErr && p[0] !== 'R' && p[0] !== 'T') p = ['T'].concat(p);
@@ -864,7 +873,7 @@ P.session = function(M, opt){
     /* the letter I and the line │ look the same to her: never both in one
        sitting, or two bubbles on the path are identical                 */
     if(items.some(function(it){ return it.g === id || twins(it.g, id); })) return false;
-    items.push({ g:id, why:why, steps:P.plan(M[id], { shape:G[id].kind === 'shape' }) });
+    items.push({ g:id, why:why, steps:P.plan(M[id], { shape:G[id].kind === 'shape', now:now }) });
     return true;
   }
 

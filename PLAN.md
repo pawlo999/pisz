@@ -83,7 +83,11 @@ close *and* their lines run the same way. Then:
 - for letters that are not their own mirror the mirrored template is
   always tried — if it fits clearly better she wrote it backwards;
 - the six closest other glyphs are tried too — if one fits clearly better,
-  it was another letter.
+  it was another letter;
+- every place where a line of the letter ends must have one of her line
+  ends or corners within 30 (the model is 100 tall; her ink is fitted onto
+  it first), one of hers for each — otherwise the letter is not finished
+  yet and she is asked for the rest (b9, §7f).
 
 Measured on synthetic child handwriting (wobble, tilt, wrong size, strokes
 that miss each other), gentle setting, all 60 glyphs:
@@ -91,9 +95,10 @@ that miss each other), gentle setting, all 60 glyphs:
 | | |
 |---|---|
 | her attempt accepted — moderate wobble | 99.7% |
-| her attempt accepted — heavy wobble | 96.7% |
-| another letter accepted | 1.3% |
-| scribble accepted | 3.3% |
+| her attempt accepted — heavy wobble | 93.6% |
+| another letter accepted | 0.8% |
+| scribble accepted | 2.7% |
+| letter with its last part missing accepted | 0.9% |
 | forgotten mark caught and named | 90.9% |
 | mirrored letter recognised | 81% |
 | time per verdict (node) | 28 ms |
@@ -236,6 +241,55 @@ What he saw, what the log and a replay of her own strokes showed, and his calls:
   in the top-left corner by the pad's own canvas rule; the cells now sit side
   by side, centred.
 
+## 7f · 11 Oct: unfinished letters (b9)
+
+He saw a Y accepted before its stem was drawn. Her record: on 11 Oct two Ys
+of two lines — a V — were accepted (16:39, score 97; 16:40 on her once-more,
+100). Cause: the judge fits her ink to the letter's full height, so the V was
+stretched 1.2–1.5× taller and its legs, within the 53° direction tolerance,
+lay along the stem. A sweep of every letter with a line left out or stopped
+at its last corner found the class: W, 2, Ż, Ź, Z, N, M accepted without
+their last part most of the time — 92 of 984 tries.
+
+Now, in the judge, after the shape fits and the mirror test: **every place
+where a line of the letter ends** (not inside a mark, not an O's seam) must
+have one of her line ends or corners within 30 — the model is 100 tall, her
+ink fitted onto it — at every level: finished is not a matter of neatness
+(at 26 and 22, normal and strict passed 5 and 9 points fewer of whole
+wobbly letters than b8). Her corners are where her line turns more than 57°
+over 12 units either side, so a corner drawn round still counts (at 8 or
+less a round-cornered F is called unfinished). **One of her places stands
+for one of the letter's**: her V's point is the foot of the stem or the
+middle of the Y, not both (at 16:40 the point fell 29 from the middle —
+inside the reach). Her line ends closer than 10 are one place; the
+letter's closer than 32 are one place too — so a 4 whose stem starts at
+the top beside the slant (31 apart on the model) is finished. Her accent
+or ogonek stands for nothing of the body (an ogonek where Ą's right leg
+should end). Shapes are not asked. A rival letter counts only finished,
+and an unfinished letter is still checked for being another, finished one:
+a P for an R is "finish it" for her and "wrote P" for the parent.
+
+In the app, not finished means "Dokończ literkę!" once (again after 🧽),
+and 6.5 s for the rest, before it counts as a miss. More than a letter's
+worth of ink is still a miss at once. The parent report names it "stopped
+before the end".
+
+Tried first and dropped: (1) each letter's unfinished forms as rivals — it
+caught the V but took complete wide Ys and 3s for unfinished and slowed the
+judge by a tenth; (2) coverage per corner-to-corner part at 26° — her V's
+left leg, squeezed, still lay within 21° of the stem.
+
+Measured: unfinished letters accepted 92 → 9 of 984. Of her 47 accepted
+copy and memory letters only her two V-for-Ys change; her real Y of 10 Oct
+passes. Whole letters drawn ×0.7, ×1.3 or ×1.6 wide: none taken for
+unfinished. Moderate wobble: unchanged at every level. Heavy wobble, whole
+letters passed (of 276): gentle 265 → 255, normal 255 → 247, strict
+222 → 215 — the ones now asked to finish mostly had their last line cut to
+half by the wobble model (W's last leg, Z's and Ź's bottom bar, S's tail).
+Still slipping: G with its bar left off (5 of 12 — the bar is shorter
+than the reach), M without its last stem (3 of 12), a 4 stopped at its
+corner (1 of 12).
+
 ## 8 · Next
 
 | | Slice | State |
@@ -251,7 +305,7 @@ What he saw, what the log and a replay of her own strokes showed, and his calls:
 ## 9 · Tests
 
     python3 serve.py 8791                     # in one shell
-    node test/engine.test.mjs                 # 74 checks, ~2 min
+    node test/engine.test.mjs                 # 87 checks, ~2 min
     node test/worker.test.mjs                 # 25 checks
     PISZ_URL=http://localhost:8791/ node test/e2e.test.mjs   # WebKit + Chromium, ~10 min
     PISZ_URL=http://localhost:8791/ node test/sounds.test.mjs  # recording + playback, Chromium, 49 checks

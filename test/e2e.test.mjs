@@ -625,6 +625,24 @@ async function suite(engine) {
     await page.context().close();
   }
   {
+    // a Y drawn as a V: not accepted, she is asked to finish it, and the stem completes it (11 Oct)
+    const { page, errors, said } = await open(b, { seed: { name: 'ADA', lang: 'pl' }, log: seedLog([...SHAPES2, ['/', 3], ['\\', 3], ['Y', 2]]) });
+    await enter(page);
+    await sitting(page, [{ g: 'Y', steps: ['C'] }]);
+    await ready(page, 'C');
+    const line = (a, b, n = 24) => Array.from({ length: n + 1 }, (_, i) => ({ x: a.x + (b.x - a.x) * i / n, y: a.y + (b.y - a.y) * i / n }));
+    await draw(page, [line({ x: -2, y: -12 }, { x: 36, y: 56 }), line({ x: 81, y: 0 }, { x: 32, y: 56 })]);
+    await until(page, () => window.__said.includes('dokończ literkę!'), null, 6000, 'asked to finish');
+    const still = await page.evaluate(() => ({ screen: window.__pisz.current(), st: window.__pisz.STEP && window.__pisz.STEP.st, rows: window.__pisz.LOG.filter(r => r.g === 'Y' && r.st === 'C').length }));
+    ok(still.screen === 'write' && still.st === 'C' && still.rows === 0, 'her V is not accepted as Y: "dokończ literkę!", and the step waits', JSON.stringify(still));
+    await draw(page, [line({ x: 34, y: 56 }, { x: 34, y: 112 })]);
+    await until(page, () => window.__pisz.current() !== 'write', null, 8000, 'item end');
+    const r = (await rowsOf(page, 'Y')).filter(x => x.st === 'C');
+    ok(r.length === 1 && r[0].ok === 1, 'the stem added: the Y counts', JSON.stringify(r));
+    ok(!errors.length, 'no errors', errors.join(' | '));
+    await page.context().close();
+  }
+  {
     // her name: the letters she has written sit side by side above the pad, not stacked in the corner
     const { page, errors } = await open(b, { seed: { name: 'NADIA', lang: 'pl' } });
     await enter(page);

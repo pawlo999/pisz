@@ -218,6 +218,73 @@ section('stored drawings');
 }
 
 /* ------------------------------------------------------------------ */
+section('unfinished letters (11 Oct: a V passed as a Y)');
+{
+  const line = (a, b, n = 30) => Array.from({ length: n + 1 }, (_, i) => ({ x: a.x + (b.x - a.x) * i / n, y: a.y + (b.y - a.y) * i / n }));
+  const all = P.allFor('pl', false);
+  const both = [...new Set([...P.allFor('pl', true), ...P.allFor('nb', true)])];
+  /* a V the way she drew it for a Y on 11 Oct (straight lines through her
+     line ends): the stem never drawn                                     */
+  const V = [line({ x: -2, y: -12 }, { x: 36, y: 56 }), line({ x: 81, y: 0 }, { x: 32, y: 56 })];
+  const r = P.verify(V, 'Y', 'gentle', all);
+  ok(!r.ok && r.errors.includes('unfinished') && (r.gap || []).some(k => Math.abs(k.x - 36) < 2 && Math.abs(k.y - 50) < 2),
+     'a Y without its stem (a V) is unfinished, and what is missing is the middle', JSON.stringify([r.errors, r.gap]));
+  const Y = V.concat([line({ x: 34, y: 56 }, { x: 34, y: 112 })]);
+  ok(P.verify(Y, 'Y', 'gentle', all).ok, 'the same V with the stem drawn is a Y');
+  /* her second V, stretched further by the fit: its point fell 29 from the
+     Y's middle — inside the reach, but it is already the stem's foot      */
+  const V2 = [[{ x: 79, y: -2 }], line({ x: 76, y: -5 }, { x: 38, y: 51 }), line({ x: 1, y: -1 }, { x: 37, y: 47 })];
+  const r2 = P.verify(V2, 'Y', 'gentle', all);
+  ok(!r2.ok && r2.errors.includes('unfinished'), 'a V with a speck is unfinished too: its one point cannot be both the middle and the foot', JSON.stringify(r2.errors));
+  const Z = [line({ x: 0, y: 0 }, { x: 80, y: 0 }).concat(line({ x: 80, y: 0 }, { x: 0, y: 100 }).slice(1))];
+  const rz = P.verify(Z, 'Z', 'gentle', all);
+  ok(!rz.ok && rz.errors.includes('unfinished'), 'a Z without its bottom bar is unfinished', JSON.stringify(rz.errors));
+  /* a P for an R: she is asked to finish, and the parent still learns it was a P */
+  const g = P.G.P, rp = P.verify(childify(g, { noise: 'moderate', seed: 5 }), 'R', 'gentle', all.filter(x => x !== 'R'));
+  ok(!rp.ok && rp.errors.includes('unfinished') && rp.other === 'P', 'a P asked for R: unfinished, and recorded as a P', JSON.stringify([rp.errors, rp.other]));
+
+  /* whole letters are never unfinished */
+  const box = s => { const p = s.flatMap(t => t.pts), xs = p.map(q => q.x), ys = p.map(q => q.y);
+    const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+    return { x0, x1, y0, y1, w: x1 - x0, h: y1 - y0, cx: (x0 + x1) / 2, cy: (y0 + y1) / 2 }; };
+  const glyph = strokes => ({ strokes, box: box(strokes), mark: [] });
+  /* a 4 with its stem from the top, beside the slant — a usual way to write it */
+  const g4 = P.G['4'], top4 = glyph([g4.strokes[0], { ...g4.strokes[1], pts: line({ x: 50, y: 0 }, { x: 50, y: 100 }, 100) }]);
+  let four = 0;
+  for (let s = 1; s <= 8; s++) if (P.verify(childify(top4, { noise: 'moderate', seed: s * 131 }), '4', 'gentle', both.filter(x => x !== '4')).ok) four++;
+  ok(four >= 7, `a 4 with its stem from the top is finished (${four}/8)`);
+  /* an F's top bar and stem in one go, the corner drawn round: her corner
+     stands for the line ends that meet there (unfinished with a corner
+     window of 8 units or less)                                          */
+  const gamma = [{ x: 56, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 100 }].reduce((acc, q, i, arr) => i ? acc.concat(line(arr[i - 1], q, 100).slice(1)) : [q], []);
+  const round = gamma.map((q, i) => { let x = 0, y = 0, n = 0; for (let j = Math.max(0, i - 20); j <= Math.min(gamma.length - 1, i + 20); j++) { x += gamma[j].x; y += gamma[j].y; n++; } return { x: x / n, y: y / n }; });
+  const rf = P.verify([round, line({ x: 0, y: 50 }, { x: 48, y: 50 })], 'F', 'gentle', all.filter(x => x !== 'F'));
+  ok(!(rf.errors || []).includes('unfinished'), 'an F with its top corner drawn round in one go is finished', JSON.stringify(rf.errors));
+  const bad = [];
+  for (const w of [0.7, 1.3, 1.6]) for (const id of both) {
+    const g = P.G[id]; if (!g || g.kind === 'shape') continue;
+    const strokes = g.strokes.map(s => ({ ...s, pts: s.pts.map(p => ({ x: g.box.cx + (p.x - g.box.cx) * w, y: p.y })) }));
+    for (let s = 1; s <= 2; s++) {
+      const e = P.verify(childify({ strokes, box: box(strokes), mark: g.mark }, { noise: 'moderate', seed: s * 31 + id.charCodeAt(0) }), id, 'gentle', both.filter(x => x !== id)).errors || [];
+      if (e.includes('unfinished')) bad.push(id + '×' + w);
+    }
+  }
+  ok(!bad.length, 'whole letters drawn narrow (×0.7) or wide (×1.3, ×1.6) are never taken for unfinished', bad.join(' '));
+  /* at every level, wobbly whole letters: rarely; shapes: never asked */
+  for (const lvl of ['gentle', 'normal', 'strict']) {
+    let n = 0, unf = 0, shapeUnf = 0;
+    for (const id of both) {
+      const g = P.G[id]; if (!g) continue;
+      for (let s = 1; s <= 3; s++) {
+        const e = P.judge(childify(g, { noise: 'heavy', seed: s * 7919 + id.charCodeAt(0) * 3 }), id, lvl).errors || [];
+        if (g.kind === 'shape') { if (e.includes('unfinished')) shapeUnf++; continue; }
+        n++; if (e.includes('unfinished')) unf++;
+      }
+    }
+    ok(unf / n <= 0.06 && !shapeUnf, `${lvl}: wobbly whole letters taken for unfinished ${pct(unf / n)} (ceiling 6%), shapes ${shapeUnf}`);
+  }
+}
+
 section('what she knows, rebuilt from the log');
 const DAY = 86400000, T0 = Date.UTC(2026, 9, 1, 9);
 {

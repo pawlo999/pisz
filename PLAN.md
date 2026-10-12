@@ -311,6 +311,75 @@ corner (1 of 12).
   checkout ignores it; the same guard is copied into `litery/tools/`, and
   each repo's tests compare the two copies when both are checked out.
 
+## 7h · 12 Oct: his round with her, and alone in test mode (b12)
+
+Her record: 17:28–17:42 UTC, 41 rows; his 🐞 marks: one during her round, six
+in test mode. What he reported, what it was, what changed:
+
+1. **"KROPKA patrz teraz"** — the guide named Ż's dot "kropka" alone, and
+   then said "Teraz bez kropek!": a dot, then "now without dots". A mark is
+   now "i kropka" / "i kreska" / "i ogonek" / "i kółeczko" (nb "og prikken"…).
+2. **"L jak las" twice** — chosen in her book, the letter was named there
+   and again on the pad. Named on its card in the last 15 s, the pad says
+   only "Patrz!" (from memory: "Teraz napisz ją sama!").
+3. **Y without its stem accepted, and no "w dół"** — her V of 17:28:40,
+   small and stretched to the model's height, had its two bottom ends 13
+   apart: two places, one for the middle and one for the foot. Her ends now
+   join within 16 (14–18 catch it and change nothing else of hers; 22 fails
+   her own A and T). The guide said "na skos" for the Y's second line and
+   never "w dół": a straight line now gets a word at each corner where its
+   way changes — Y "na skos … w dół", L "w dół … w prawo", N "na skos … w
+   górę", M "… w dół", Z "w prawo … na skos … w prawo", 1, 4, 7 likewise
+   (a line within ~8° of upright or level counts as down or across, so W's
+   steep legs stay "na skos") — in the guide, and on the road and the dots
+   as her finger passes the corner.
+4. **A press shown, nothing happens** (his mark at 18:15 on the home screen)
+   — iPadOS drops a tap's click when the finger moves a little or the
+   pressed button sinks from under it (`:active` moves them 4–7 px). On her
+   screens a button now acts when the finger lifts within 30 px.
+5. **Stuck: no new line, no ↩️, no 🧽** — a line whose lifting never
+   arrived kept the pad: every new finger was "another finger", and ↩️ waits
+   for the open line. Reproduced in the browser test: on b11 the line stays
+   open and the next one never draws. Now the line ends when the last finger
+   leaves the glass (resting fingers are forgotten then too), when a second
+   pen lands, and when she taps 🧽 or ↩️ — never while a finger is still
+   down, since she may hold still at a corner with a palm beside her.
+6. **A miss, then right with the dots: does it count as copy or memory?** —
+   no: a helped success counts at the dots level (b8). Her S, Ś, K and Ń are
+   at level 2 after today, not 3.
+7. **Small letters made to use dots? A one-go N wrong?** — size is never
+   judged (her ink is scaled to the model); her first tries today missed on
+   shape (an S like a T, a K like an F or a P), and the tries over the dots
+   came out big because the dots are full size. Research (A): size is a
+   school-age skill, not a preschool target (MEN podstawa 2017; Marr et al.
+   2001; Lindsay & McLennan 1983). One tiny try (an S 14 units tall, six
+   dabs) counted as a miss — his call open: ask for a bigger one instead.
+   (B) There is no official Polish stroke order for a printed N; the app's
+   model is the common one (Handwriting Without Tears: down, back to the top,
+   diagonal, up). A one-go N is not wrong by any study; forcing an order under
+   4½ lowered recognition (Merritt et al. 2020); from about 6, explicit
+   formation helps (Berninger 1997; Graham, Harris & Fink 2000). The app
+   already counts a right shape drawn another way and shows the first line once.
+8. **"2" drawn over "1"** — and then, his eye on the fix: E still did not say
+   whether to start down or across. The start is now a smaller green dot
+   with its arrow, and the line's number — a green digit with no dot round
+   it (his pick of two, 12 Oct) — sits beside the arrow: E's "1" by the
+   arrow down, "2" by the arrow across. The number takes
+   the place beside its arrow (six tried) farthest from the other lines and
+   from its own line still to trace; every dot and arrow is drawn before any
+   number; the dots, the guide and the road/dots step alike. Checked on every
+   glyph of both alphabets.
+9. **"Teraz bez kropek!"** — gone. After the guide the pad opens with "Teraz
+   ty!"; a copy that starts a letter without the guide names the letter, a
+   later copy step says "Teraz ty!".
+10. **K in the wrong order: "patrz", accepted at the same time** — wrong
+    order was praised, sometimes "W dobrą stronę!". Now it counts like a
+    wrong start or way: the praise first, on its own, then the line that
+    came out of turn is drawn — line 1 with "Zobacz, od której kreski
+    zaczynamy.", a later one (E begun right, bars swapped) with "Zobacz,
+    która kreska jest następna.". The same split for wrong start and way:
+    praise, then "Zobacz…".
+
 ## 8 · Next
 
 | | Slice | State |
@@ -326,10 +395,10 @@ corner (1 of 12).
 ## 9 · Tests
 
     python3 serve.py 8791                     # in one shell
-    node test/engine.test.mjs                 # 89 checks, ~2 min
+    node test/engine.test.mjs                 # 90 checks, ~2 min
     node test/worker.test.mjs                 # 25 checks
     node test/tools.test.mjs                  # tools/her-log.py: guard, arguments, what --marks prints; 14 checks (13 without litery beside it), no network
-    bash test/e2e-both.sh                     # WebKit and Chromium at once, 358 checks, ~13 min
+    bash test/e2e-both.sh                     # WebKit and Chromium at once, 424 checks, ~15 min
     PISZ_URL=http://localhost:8791/ node test/e2e.test.mjs   # the same one engine after the other, ~25 min
     PISZ_URL=http://localhost:8791/ node test/sounds.test.mjs  # recording + playback, Chromium, 49 checks
 

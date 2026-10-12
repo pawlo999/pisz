@@ -236,6 +236,11 @@ section('unfinished letters (11 Oct: a V passed as a Y)');
   const V2 = [[{ x: 79, y: -2 }], line({ x: 76, y: -5 }, { x: 38, y: 51 }), line({ x: 1, y: -1 }, { x: 37, y: 47 })];
   const r2 = P.verify(V2, 'Y', 'gentle', all);
   ok(!r2.ok && r2.errors.includes('unfinished'), 'a V with a speck is unfinished too: its one point cannot be both the middle and the foot', JSON.stringify(r2.errors));
+  /* 12 Oct: a small V, two specks first; stretched to the model's height
+     its two bottom ends come out about 13 apart — still one point         */
+  const V3 = [[{ x: -6, y: 0 }], line({ x: -3, y: 0 }, { x: 1, y: 0 }, 4), line({ x: 3, y: 0 }, { x: 37, y: 55 }), line({ x: 72, y: -1 }, { x: 41, y: 48 })];
+  const r3 = P.verify(V3, 'Y', 'gentle', all);
+  ok(!r3.ok && r3.errors.includes('unfinished'), 'a small V whose legs end a little apart is unfinished too', JSON.stringify(r3.errors));
   const Z = [line({ x: 0, y: 0 }, { x: 80, y: 0 }).concat(line({ x: 80, y: 0 }, { x: 0, y: 100 }).slice(1))];
   const rz = P.verify(Z, 'Z', 'gentle', all);
   ok(!rz.ok && rz.errors.includes('unfinished'), 'a Z without its bottom bar is unfinished', JSON.stringify(rz.errors));

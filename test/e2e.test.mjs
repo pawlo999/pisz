@@ -491,6 +491,160 @@ async function suite(engine) {
   }
 
   /* ---------------------------------------------------------------- */
+  console.log('\n12 Oct, his round: what she hears, taps, a stuck line, the numbers');
+  {
+    // 1: the dot of Ż is "i kropka"; 9: no "teraz bez kropek!" — after the guide, "teraz ty!"
+    const { page, errors, said } = await open(b, { seed: { name: 'ADA', lang: 'pl' }, log: seedLog([...SHAPES2, ['Z', 2], ['Ż', 2]]) });
+    await enter(page);
+    await sitting(page, [{ g: 'Ż', steps: ['C'] }]);
+    await ready(page, 'C');
+    const s1 = await said();
+    ok(s1.includes('i kropka') && !s1.includes('kropka'), 'the guide names Ż\'s dot "i kropka", never "kropka" alone', JSON.stringify(s1));
+    ok(!s1.includes('teraz bez kropek!') && s1[s1.length - 1] === 'teraz ty!', 'after the guide: "teraz ty!", never "teraz bez kropek!"', JSON.stringify(s1.slice(-3)));
+    ok(s1.indexOf('na skos') > s1.indexOf('w prawo') && s1.lastIndexOf('w prawo') > s1.indexOf('na skos'), 'Z\'s one line is named at its corners: w prawo, na skos, w prawo', JSON.stringify(s1));
+    ok(!errors.length, 'no errors', errors.join(' | '));
+    await page.context().close();
+  }
+  {
+    // 3: Y's second line goes down at its corner, and the guide says so
+    const { page, errors, said } = await open(b, { seed: { name: 'ADA', lang: 'pl' }, log: seedLog([...SHAPES2, ['/', 2], ['\\', 2], ['Y', 2]]) });
+    await enter(page);
+    await sitting(page, [{ g: 'Y', steps: ['C'] }]);
+    await ready(page, 'C');
+    const s3 = await said();
+    ok(s3.indexOf('w dół') > s3.indexOf('na skos') && s3.indexOf('na skos') >= 0, 'the guide draws the Y "na skos … w dół"', JSON.stringify(s3));
+    ok(!errors.length, 'no errors', errors.join(' | '));
+    await page.context().close();
+  }
+  {
+    // 10: K in the wrong order counts, praise first, then the first line shown — never "w dobrą stronę!"
+    const { page, errors, said } = await open(b, { seed: { name: 'ADA', lang: 'pl' }, log: seedLog([...SHAPES2, ['K', 2]]) });
+    await enter(page);
+    await sitting(page, [{ g: 'K', steps: ['C'] }]);
+    await ready(page, 'C');
+    const before = (await said()).length;
+    await draw(page, templateStrokes(P, 'K').slice().reverse());
+    await until(page, () => window.__pisz.current() !== 'write', null, 12000, 'item end');
+    const s10 = (await said()).slice(before), r10 = (await rowsOf(page, 'K')).filter(x => x.st === 'C');
+    const zi = s10.indexOf('zobacz, od której kreski zaczynamy.');
+    ok(r10.length === 1 && r10[0].ok === 1 && /order/.test(r10[0].e), 'a K drawn in the wrong order counts', JSON.stringify(r10));
+    ok(zi > 0 && /!$/.test(s10[zi - 1]) && !s10.some(x => /w dobrą stronę|od samej góry/.test(x)), 'praise, then "zobacz, od której kreski zaczynamy." — and no "w dobrą stronę!"', JSON.stringify(s10));
+    ok(!errors.length, 'no errors', errors.join(' | '));
+    await page.context().close();
+  }
+  {
+    // 10, with line 1 right: E as stem, middle, top, bottom — the line out of turn is the top bar
+    const { page, errors, said } = await open(b, { seed: { name: 'ADA', lang: 'pl' }, log: seedLog([...SHAPES2, ['E', 2]]) });
+    await enter(page);
+    await sitting(page, [{ g: 'E', steps: ['C'] }]);
+    await ready(page, 'C');
+    const before = (await said()).length, e = templateStrokes(P, 'E');
+    await draw(page, [e[0], e[2], e[1], e[3]]);
+    await until(page, () => window.__pisz.current() !== 'write', null, 12000, 'item end');
+    const se = (await said()).slice(before), re = (await rowsOf(page, 'E')).filter(x => x.st === 'C');
+    ok(re.length === 1 && re[0].ok === 1 && /order/.test(re[0].e) && se.includes('zobacz, która kreska jest następna.') && !se.includes('zobacz, od której kreski zaczynamy.'),
+       'E begun right, its bars swapped: "zobacz, która kreska jest następna." — not "od której zaczynamy"', JSON.stringify([re, se]));
+    ok(!errors.length, 'no errors', errors.join(' | '));
+    await page.context().close();
+  }
+  {
+    // 5, the other side: a finger still on the glass keeps her line open; ↩️ tapped then does not cut it
+    const { page, errors } = await open(b, { seed: { name: 'ADA', lang: 'pl' }, log: seedLog([...SHAPES2, ['T', 2]]) });
+    await enter(page);
+    await sitting(page, [{ g: 'T', steps: ['C'] }]);
+    await ready(page, 'C');
+    const stem = templateStrokes(P, 'T')[0];
+    const open1 = await page.evaluate(async stem => {
+      const pad = document.getElementById('pad'), a = window.__pisz, wait = ms => new Promise(r => setTimeout(r, ms));
+      const ev = (t, p) => { const c = a.toClient(p.x, p.y); pad.dispatchEvent(new PointerEvent(t, { bubbles: true, pointerId: 31, pointerType: 'touch', clientX: c.x, clientY: c.y, isPrimary: true, width: 10, height: 10 })); };
+      const touch = (t, n) => document.dispatchEvent(Object.assign(new Event(t, { bubbles: true }), { touches: Array.from({ length: n }, () => ({})), changedTouches: [] }));
+      touch('touchstart', 1); ev('pointerdown', stem[0]); stem.slice(0, 40).forEach(p => ev('pointermove', p));
+      touch('touchstart', 2); touch('touchend', 1);              /* another finger rests, then lifts: hers is still down */
+      await wait(200);
+      const afterRest = !!a.STEP.cur;
+      touch('touchstart', 2);                                   /* a finger taps ↩️ while hers draws */
+      document.getElementById('undo').click();
+      await wait(100);
+      const afterUndo = { cur: !!a.STEP.cur, lines: a.STEP.strokes.length };
+      stem.slice(40).forEach(p => ev('pointermove', p)); ev('pointerup', stem[stem.length - 1]); touch('touchend', 1); touch('touchend', 0);
+      return { afterRest, afterUndo };
+    }, stem);
+    ok(open1.afterRest, 'another finger lifting while hers is down leaves her line open', JSON.stringify(open1));
+    ok(open1.afterUndo.cur && open1.afterUndo.lines === 1, '↩️ tapped while she draws does not cut her line', JSON.stringify(open1));
+    ok(!errors.length, 'no errors', errors.join(' | '));
+    await page.context().close();
+  }
+  {
+    // 2: chosen in her book, the letter is named once, not again on the pad
+    const { page, errors, said } = await open(b, { seed: { name: 'ADA', lang: 'pl' }, log: seedLog([...SHAPES2, ['L', 2]]) });
+    await enter(page);
+    await sleep(600);
+    await page.evaluate(() => { window.__pisz.openBook('path'); });
+    await sleep(400);
+    const before = (await said()).length;
+    await page.evaluate(() => { const a = window.__pisz, i = a.P.allFor(a.S.lang, a.S.digits).indexOf('L'); document.querySelectorAll('#cards > *')[i].click(); });
+    await sleep(300);
+    await page.evaluate(() => document.getElementById('detailwrite').click());
+    await until(page, () => { const a = window.__pisz; return a.STEP && a.STEP.ready && !a.STEP.intro; }, null, 15000, 'ready');
+    const s2 = (await said()).slice(before), name = s2[0];
+    ok(name && s2.filter(x => x === name || x.startsWith(name + '.')).length === 1, 'the letter chosen in her book is named once: there, not again on the pad', JSON.stringify(s2));
+    ok(!errors.length, 'no errors', errors.join(' | '));
+    await page.context().close();
+  }
+  {
+    // 4: a tap whose finger moves a little (no click comes) still counts
+    const { page, errors } = await open(b, { seed: { name: 'ADA', lang: 'pl' } });
+    await page.evaluate(() => {
+      const a = document.getElementById('avatar'), r = a.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + 12;
+      const ev = (t, dx, dy) => a.dispatchEvent(new PointerEvent(t, { bubbles: true, pointerId: 7, pointerType: 'touch', clientX: x + dx, clientY: y + dy, isPrimary: true }));
+      ev('pointerdown', 0, 0); ev('pointermove', 6, 9); ev('pointerup', 9, 14);
+    });
+    await sleep(300);
+    ok(await page.evaluate(() => window.__pisz.current()) === 'welcome', 'a tap on her name that moves 15 px, with no click after it, still opens', await page.evaluate(() => window.__pisz.current()));
+    ok(!errors.length, 'no errors', errors.join(' | '));
+    await page.context().close();
+  }
+  {
+    // 5: a line whose lifting never came does not hold the pad; 8: "1" and "2" side by side
+    const { page, errors } = await open(b, { seed: { name: 'ADA', lang: 'pl' }, log: seedLog([...SHAPES2, ['T', 2]]) });
+    await enter(page);
+    await sitting(page, [{ g: 'T', steps: ['C'] }]);
+    await ready(page, 'C');
+    const stem = templateStrokes(P, 'T')[0];
+    await page.evaluate(stem => {
+      const pad = document.getElementById('pad'), a = window.__pisz;
+      const at = p => a.toClient(p.x, p.y);
+      const ev = (t, p) => { const c = at(p); pad.dispatchEvent(new PointerEvent(t, { bubbles: true, pointerId: 21, pointerType: 'touch', clientX: c.x, clientY: c.y, isPrimary: true, width: 10, height: 10 })); };
+      ev('pointerdown', stem[0]); stem.forEach(p => ev('pointermove', p));
+      /* no pointerup: the finger leaves, only touchend says so */
+      document.dispatchEvent(Object.assign(new Event('touchend', { bubbles: true }), { touches: [], changedTouches: [] }));
+    }, stem);
+    await sleep(900);
+    const s5 = await page.evaluate(() => ({ cur: !!window.__pisz.STEP.cur, lines: window.__pisz.STEP.strokes.length }));
+    ok(!s5.cur && s5.lines === 1, 'a line whose lifting never came is ended when the last finger leaves the glass', JSON.stringify(s5));
+    await draw(page, [templateStrokes(P, 'T')[1]]);
+    await until(page, () => window.__pisz.current() !== 'write' || (window.__pisz.STEP && window.__pisz.STEP.st !== 'C'), null, 9000, 'T done');
+    ok((await rowsOf(page, 'T')).some(x => x.st === 'C' && x.ok === 1), 'and her next line draws: the T is done');
+    ok(!errors.length, 'no errors', errors.join(' | '));
+    await page.context().close();
+  }
+  {
+    // 8: after a miss, the dots: each line's number by its arrow (his idea, 12 Oct), so lines from one point stay apart
+    const { page, errors } = await open(b, { seed: { name: 'ADA', lang: 'pl' }, log: seedLog([...SHAPES2, ['/', 2], ['\\', 2], ['A', 2]]) });
+    await enter(page);
+    await sitting(page, [{ g: 'A', steps: ['C'] }]);
+    await ready(page, 'C');
+    await draw(page, [Array.from({ length: 30 }, (_, i) => ({ x: 10 + i, y: 50 }))]);   /* a line across: a miss */
+    await until(page, () => window.__pisz.STEP && window.__pisz.STEP.overlay === 'dots' && window.__pisz.STEP.ready, null, 20000, 'dots after the miss');
+    const bd = await page.evaluate(() => window.__pisz.STEP.badges);
+    const b1 = bd.find(x => x.n === 1), b2 = bd.find(x => x.n === 2);
+    const d = (p, q) => Math.hypot(p.x - q.x, p.y - q.y), arrow = q => ({ x: q.ax, y: q.ay });
+    ok(b1 && b2 && d(b1, b2) >= 15 && d(b1, arrow(b1)) < d(b1, arrow(b2)) && d(b2, arrow(b2)) < d(b2, arrow(b1)),
+       'A\'s two lines start at one point: each number sits by its own arrow, apart from the other', JSON.stringify(bd));
+    ok(!errors.length, 'no errors', errors.join(' | '));
+    await page.context().close();
+  }
+
   console.log('\n12 Oct: his 🐞 bug mark — two quick taps on ⚙️');
   {
     const { page, errors, said } = await open(b, { seed: { name: 'ADA', lang: 'pl' }, log: seedLog([...SHAPES2, ['T', 2]]) });
@@ -551,7 +705,8 @@ async function suite(engine) {
     const r = (await rowsOf(page, 'L')).filter(x => x.st === 'C');
     ok(r.length === 1 && r[0].ok === 1 && /start/.test(r[0].e), 'an L drawn from the wrong end still counts', JSON.stringify(r));
     /* praise is picked at random and "ale ładnie!" is two words: any praise, then the line */
-    ok((await said()).some(x => /^.+! zobacz, skąd zaczynamy\.$/.test(x)), '…and she hears praise + "zobacz, skąd zaczynamy" while its first line is drawn again', JSON.stringify((await said()).slice(-5)));
+    const sl = await said(), zi = sl.lastIndexOf('zobacz, skąd zaczynamy.');
+    ok(zi > 0 && /!$/.test(sl[zi - 1]), '…and she hears praise, then "zobacz, skąd zaczynamy." on its own while its first line is drawn again (12 Oct)', JSON.stringify(sl.slice(-5)));
     ok(!errors.length, 'no errors', errors.join(' | '));
     await page.context().close();
   }
@@ -653,7 +808,7 @@ async function suite(engine) {
     await draw(page, templateStrokes(P, 'O'));
     await until(page, () => window.__said.includes('spróbujmy jeszcze raz.'), null, 15000, 'first miss shown again');
     const help = await page.evaluate(() => {
-      const a = window.__pisz, s = a.STEP.g.strokes[0].pts[0], cv = document.getElementById('dot'), rc = cv.getBoundingClientRect(), k = cv.width / rc.width, c = a.toClient(s.x + 5, s.y);
+      const a = window.__pisz, s = a.STEP.g.strokes[0].pts[0], cv = document.getElementById('dot'), rc = cv.getBoundingClientRect(), k = cv.width / rc.width, c = a.toClient(s.x + 2, s.y);   /* inside the start dot (no number in it since 12 Oct) */
       const px = cv.getContext('2d').getImageData(Math.round((c.x - rc.left) * k), Math.round((c.y - rc.top) * k), 1, 1).data;
       return { overlay: a.STEP.overlay, startDot: px[1] > 120 && px[0] < 80 };
     });
@@ -732,7 +887,7 @@ async function suite(engine) {
     await draw(page, [O.slice(0, Math.round(O.length * 0.45))]);
     const r = await page.evaluate(() => {
       const a = window.__pisz, d = a.STEP.dotAt(), kids = [...document.getElementById('pad').children].map(e => e.id);
-      const at = (id, p) => { const cv = document.getElementById(id), rc = cv.getBoundingClientRect(), k = cv.width / rc.width, c = a.toClient(p.x + 5, p.y);
+      const at = (id, p) => { const cv = document.getElementById(id), rc = cv.getBoundingClientRect(), k = cv.width / rc.width, c = a.toClient(p.x + 2, p.y);
                               return Array.from(cv.getContext('2d').getImageData(Math.round((c.x - rc.left) * k), Math.round((c.y - rc.top) * k), 1, 1).data); };
       return { order: kids.indexOf('dot') > kids.indexOf('ink'), dot: at('dot', d), ink: at('ink', d) };
     });
@@ -860,7 +1015,7 @@ async function suite(engine) {
       const a = window.__pisz, d = a.STEP.dotAt(), s0 = a.STEP.g.strokes[0].pts[0], cv = document.getElementById('dot');
       const r = cv.getBoundingClientRect(), k = cv.width / r.width, x = cv.getContext('2d');
       /* beside the centre, where the dot's white number is not */
-      const green = p => { const c = a.toClient(p.x + 5, p.y), px = x.getImageData(Math.round((c.x - r.left) * k), Math.round((c.y - r.top) * k), 1, 1).data;
+      const green = p => { const c = a.toClient(p.x + 2, p.y), px = x.getImageData(Math.round((c.x - r.left) * k), Math.round((c.y - r.top) * k), 1, 1).data;
                            return px[1] > 120 && px[0] < 80 && px[2] < 120; };
       return { idx: a.STEP.tr[0].idx, atStop: green(d), atStart: green(s0) };
     });

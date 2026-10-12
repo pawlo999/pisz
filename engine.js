@@ -1061,6 +1061,15 @@ P.summary = function(log, now){
   return { mastery:M, days:days, samples:samples };
 };
 
+/* what she might have written instead of `id`: the shapes and every glyph
+   she has met (M from P.rebuild). The app judges with these, and so does
+   tools/rejudge.cjs — one list, so a re-judge cannot drift from the app. */
+P.rivals = function(M, id){
+  var out = P.SHAPES.slice();
+  Object.keys(M).forEach(function(k){ if(out.indexOf(k) < 0) out.push(k); });
+  return out.filter(function(k){ return k !== id && G[k]; });
+};
+
 /* which letters this child's game covers, in order, for the grid */
 P.allFor = function(lang, digits){
   return P.SHAPES.concat(P.LETTERS[lang || 'pl'], digits ? P.DIGITS : []);

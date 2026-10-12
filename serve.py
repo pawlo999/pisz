@@ -20,7 +20,10 @@ class H(http.server.SimpleHTTPRequestHandler):
         super().end_headers()
 
 port = int(sys.argv[1]) if len(sys.argv) > 1 else 8765
-socketserver.TCPServer.allow_reuse_address = True
-with socketserver.TCPServer(('', port), H) as httpd:
+# threaded: two browsers at once (test/e2e-both.sh) must not queue behind
+# each other's open connections
+socketserver.ThreadingTCPServer.allow_reuse_address = True
+socketserver.ThreadingTCPServer.daemon_threads = True
+with socketserver.ThreadingTCPServer(('', port), H) as httpd:
     print('serving on', port)
     httpd.serve_forever()

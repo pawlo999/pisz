@@ -505,7 +505,8 @@ async function suite(engine) {
     await until(page, () => window.__pisz.current() !== 'write', null, 9000, 'item end, not stalled');
     const r = (await rowsOf(page, 'L')).filter(x => x.st === 'C');
     ok(r.length === 1 && r[0].ok === 1 && /start/.test(r[0].e), 'an L drawn from the wrong end still counts', JSON.stringify(r));
-    ok((await said()).some(x => /^\S+ zobacz, skąd zaczynamy\.$/.test(x)), '…and she hears praise + "zobacz, skąd zaczynamy" while its first line is drawn again', JSON.stringify((await said()).slice(-5)));
+    /* praise is picked at random and "ale ładnie!" is two words: any praise, then the line */
+    ok((await said()).some(x => /^.+! zobacz, skąd zaczynamy\.$/.test(x)), '…and she hears praise + "zobacz, skąd zaczynamy" while its first line is drawn again', JSON.stringify((await said()).slice(-5)));
     ok(!errors.length, 'no errors', errors.join(' | '));
     await page.context().close();
   }

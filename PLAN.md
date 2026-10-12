@@ -279,9 +279,12 @@ caught the V but took complete wide Ys and 3s for unfinished and slowed the
 judge by a tenth; (2) coverage per corner-to-corner part at 26° — her V's
 left leg, squeezed, still lay within 21° of the stem.
 
-Measured: unfinished letters accepted 92 → 9 of 984. Of her 47 accepted
-copy and memory letters only her two V-for-Ys change; her real Y of 10 Oct
-passes. Whole letters drawn ×0.7, ×1.3 or ×1.6 wide: none taken for
+Measured: unfinished letters accepted 92 → 9 of 984. Of her 83 stored
+copy, memory and name attempts, judged again with the app's own rivals
+(`tools/rejudge.cjs`), three change: her two V-for-Ys, and the A of her name
+on 10 Oct 06:32, whose right leg stops just under the bar — now "Dokończ
+literkę!" (it was first checked on copy and memory only). Her real Y of
+10 Oct passes. Whole letters drawn ×0.7, ×1.3 or ×1.6 wide: none taken for
 unfinished. Moderate wobble: unchanged at every level. Heavy wobble, whole
 letters passed (of 276): gentle 265 → 255, normal 255 → 247, strict
 222 → 215 — the ones now asked to finish mostly had their last line cut to
@@ -307,8 +310,15 @@ corner (1 of 12).
     python3 serve.py 8791                     # in one shell
     node test/engine.test.mjs                 # 87 checks, ~2 min
     node test/worker.test.mjs                 # 25 checks
-    PISZ_URL=http://localhost:8791/ node test/e2e.test.mjs   # WebKit + Chromium, ~10 min
+    bash test/e2e-both.sh                     # WebKit and Chromium at once, 358 checks, ~13 min
+    PISZ_URL=http://localhost:8791/ node test/e2e.test.mjs   # the same one engine after the other, ~25 min
     PISZ_URL=http://localhost:8791/ node test/sounds.test.mjs  # recording + playback, Chromium, 49 checks
+
+`test/e2e-both.sh` runs the two browsers under a 3 GB cap with no swap
+(their peak: 2.9 GB counting file cache), side by side only when 3.5 GB is
+free, otherwise one after the other; one run at a time on the machine. Measuring a change to the judge — her stored
+attempts re-judged, unfinished letters, every level, timing — is in `tools/`
+(its README).
 
 WebKit is Playwright's 26.6 build — the engine iPadOS 26 Safari uses —
 running headless without root: its missing libraries were unpacked from

@@ -285,6 +285,15 @@ section('unfinished letters (11 Oct: a V passed as a Y)');
   }
 }
 
+section('rivals: what she might have written instead');
+{
+  /* one list for the app and tools/rejudge.cjs (b10, moved out of app.js) */
+  const M = P.rebuild([{ t: 1, g: 'L', st: 'C', ok: 1 }, { t: 2, g: 'T', st: 'C', ok: 0 }, { t: 3, g: 'o', st: 'R', ok: 1 }]);
+  const r = typeof P.rivals === 'function' ? P.rivals(M, 'T') : [];
+  ok(P.SHAPES.every(x => r.includes(x)) && r.includes('L') && !r.includes('T') && !r.includes('E') && new Set(r).size === r.length,
+     'the shapes and every glyph she has met, never the one asked, nothing twice', JSON.stringify(r));
+}
+
 section('what she knows, rebuilt from the log');
 const DAY = 86400000, T0 = Date.UTC(2026, 9, 1, 9);
 {

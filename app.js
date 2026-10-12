@@ -3,7 +3,7 @@
 (function () {
 'use strict';
 
-var BUILD = 9;
+var BUILD = 10;
 /* The sync service. The URL is public; the key the parent pastes in is the
    only credential, because there is no login for a four-year-old.        */
 var SYNC_URL = 'https://pisz-sync.pawlo999.workers.dev';
@@ -766,10 +766,7 @@ var SES = null, RUN = null, STEP = null, FX = null;
 
 function rivals(id){
   /* what she might have written instead: what she has met, and the shapes */
-  var out = P.SHAPES.slice();
-  Object.keys(M).forEach(function(k){ if(out.indexOf(k) < 0) out.push(k); });
-  P.allFor(S.lang, S.digits).forEach(function(k){ if(G[k].kind === 'letter' && out.indexOf(k) < 0 && M[k]) out.push(k); });
-  return out.filter(function(k){ return k !== id; });
+  return P.rivals(M, id);
 }
 
 function startSession(){

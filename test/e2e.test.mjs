@@ -491,6 +491,51 @@ async function suite(engine) {
   }
 
   /* ---------------------------------------------------------------- */
+  console.log('\n12 Oct: his 🐞 bug mark — two quick taps on ⚙️');
+  {
+    const { page, errors, said } = await open(b, { seed: { name: 'ADA', lang: 'pl' }, log: seedLog([...SHAPES2, ['T', 2]]) });
+    await enter(page);
+    await sitting(page, [{ g: 'T', steps: ['C'] }]);
+    await ready(page, 'C');
+    await draw(page, [templateStrokes(P, 'T')[0]]);          /* the stem only: the letter is not done */
+    await sleep(300);
+    const gear = (...types) => page.evaluate(types => { const g = document.getElementById('gear'); types.forEach(t => g.dispatchEvent(new Event(t, { bubbles: true }))); }, types);
+    const marks = () => page.evaluate(() => window.__pisz.LOG.filter(r => r.k === 'B'));
+    /* one tap, and the mouse events a touch also fires: not a mark */
+    await gear('touchstart', 'touchend', 'mousedown', 'mouseup');
+    await sleep(600);
+    ok((await marks()).length === 0, 'one tap on ⚙️ (with the mouse events a touch brings): no mark');
+    const before = (await said()).length;
+    await gear('touchstart', 'touchend'); await sleep(120); await gear('touchstart', 'touchend');
+    await sleep(250);
+    const m = await page.evaluate(() => {
+      const r = window.__pisz.LOG.filter(r => r.k === 'B');
+      return { n: r.length, row: r[0] && { g: r[0].g, st: r[0].st }, x: r[0] ? JSON.parse(r[0].x) : null,
+               flash: document.getElementById('bugflash').classList.contains('on'), screen: window.__pisz.current(), st: window.__pisz.STEP && window.__pisz.STEP.st };
+    });
+    ok(m.n === 1 && m.x.scr === 'write' && m.x.st === 'C' && m.x.g === 'T' && m.x.ink.length === 1 && m.x.voice && m.x.b,
+       'two quick taps: one 🐞 row with the screen, the step, the letter and her one line so far', JSON.stringify(m.x));
+    ok(m.row.g === undefined && m.row.st === undefined, 'the row has no letter or step of its own: it never counts towards her progress', JSON.stringify(m.row));
+    ok(m.flash && m.screen === 'write' && m.st === 'C', 'the 🐞 shows and her step goes on', JSON.stringify({ flash: m.flash, screen: m.screen, st: m.st }));
+    ok((await said()).length === before, 'nothing is said', JSON.stringify((await said()).slice(before)));
+    await sleep(1000);
+    ok(!(await page.evaluate(() => document.getElementById('bugflash').classList.contains('on'))), 'the 🐞 is gone after a second');
+    /* she can double-tap the gear too: one mark in 10 s at most */
+    await gear('touchstart', 'touchend'); await sleep(120); await gear('touchstart', 'touchend');
+    await sleep(250);
+    ok((await marks()).length === 1, 'a second double tap within 10 s writes nothing');
+    /* a touch the system takes over (touchcancel): no panel 1.2 s later */
+    await gear('touchstart', 'touchcancel'); await sleep(1400);
+    ok(await page.evaluate(() => window.__pisz.current()) === 'write', 'a cancelled touch on ⚙️ opens nothing');
+    /* held, ⚙️ still opens the parent panel — and makes no mark */
+    await gear('touchstart'); await sleep(1400);
+    const held = await page.evaluate(() => window.__pisz.current());
+    await gear('touchend'); await sleep(300);
+    ok(held === 'parent' && (await marks()).length === 1, 'held 1.2 s, ⚙️ opens the parent panel as before, with no mark', held);
+    ok(!errors.length, 'no errors', errors.join(' | '));
+    await page.context().close();
+  }
+
   console.log('\n10 Oct: the right way shown, ↩️, once more, the whole name');
   {
     // a letter right in shape but drawn from the wrong end: it counts, and the way is shown

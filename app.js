@@ -3,7 +3,7 @@
 (function () {
 'use strict';
 
-var BUILD = 10;
+var BUILD = 11;
 /* The sync service. The URL is public; the key the parent pastes in is the
    only credential, because there is no login for a four-year-old.        */
 var SYNC_URL = 'https://pisz-sync.pawlo999.workers.dev';
@@ -175,11 +175,15 @@ function trimDrawings(){
   }
   return n;
 }
+/* the same millisecond twice would merge as one row on sync */
+function stamp(row){
+  row.t = Date.now();
+  if(LOG.length && LOG[LOG.length-1].t >= row.t) row.t = LOG[LOG.length-1].t + 1;
+  return row;
+}
 function record(row){
   if(S.practice) return;               /* a parent's test run never counts */
-  row.t = Date.now(); row.l = S.lang;
-  /* the same millisecond twice would merge as one row on sync */
-  if(LOG.length && LOG[LOG.length-1].t >= row.t) row.t = LOG[LOG.length-1].t + 1;
+  stamp(row); row.l = S.lang;
   LOG.push(row);
   M = P.rebuild(LOG);
   saveLog();
@@ -198,9 +202,13 @@ function mergeRows(a, b){
   return out.sort(function(x, y){ return x.t - y.t; });
 }
 P.mergeRows = mergeRows;
-var syncing = false;
-function cloudSync(){
-  if(!S.syncKey || S.practice || syncing) return;
+var syncing = false, syncAgain = false;
+/* force: a 🐞 mark goes up even in a parent's test run. What a test run
+   wrote into LOG (speech-trouble rows) goes with it — as it would with the
+   next sync after the run anyway                                        */
+function cloudSync(force){
+  if(!S.syncKey || (S.practice && !force)) return;
+  if(syncing){ if(force) syncAgain = true; return; }
   syncing = true; S.syncMsg = 'syncing…';
   fetch(SYNC_URL + '/s/' + encodeURIComponent(S.syncKey), {
     method:'POST', headers:{ 'Content-Type':'application/json' },
@@ -218,7 +226,7 @@ function cloudSync(){
     S.syncMsg = LOG.length + ' rows in sync' + (d.added ? ' (+' + d.added + ' on the server)' : '');
   })
   .catch(function(e){ S.syncMsg = 'sync failed: ' + (e.message || e); })
-  .then(function(){ syncing = false; paintSync(); });
+  .then(function(){ syncing = false; paintSync(); if(syncAgain){ syncAgain = false; cloudSync(true); } });
 }
 
 /* ============ voice and sound ======================================= */
@@ -1614,11 +1622,66 @@ Array.prototype.forEach.call(document.querySelectorAll('.flag'), function(f){
 });
 
 /* ============ the parent's side ===================================== */
-var press = null;
-function armGear(){ clearTimeout(press); press = setTimeout(openParent, 1200); }
-function disarmGear(){ clearTimeout(press); }
+/* ⚙️: held 1.2 s, the parent panel; two quick taps, his 🐞 bug mark.
+   A touch also fires mouse events afterwards — those are not a second tap. */
+var press = null, pressAt = 0, tapAt = 0, touchAt = 0;
+function armGear(e){
+  if(e && e.type === 'touchstart') touchAt = Date.now();
+  else if(Date.now() - touchAt < 1000) return;
+  clearTimeout(press); pressAt = Date.now(); press = setTimeout(openParent, 1200);
+}
+function disarmGear(e){
+  if(e && e.type !== 'touchend' && Date.now() - touchAt < 1000) return;
+  /* no mouse events after this touch: the time guess above is the fallback */
+  if(e && e.type === 'touchend' && e.cancelable) e.preventDefault();
+  clearTimeout(press);
+  var now = Date.now();
+  if(now - pressAt > 400) return;
+  if(now - tapAt < 450){ tapAt = 0; bugMark(); } else tapAt = now;
+}
+/* 🐞 (his 1a, 12 Oct): what is happening at this second, into her log for
+   Claude to read — the screen, the letter and step, her ink so far (the
+   line she is drawing too), the judge's last word, what is being said.
+   No g or st on the row, so it never counts towards her progress; no
+   sound and no change to her step — only the 🐞 flashes for a second.  */
+var markAt = 0;
+function bugMark(){
+  /* one in 10 s: the gear is on her screen, and a 🐞 is fun to make */
+  if(Date.now() - markAt < 10000) return;
+  markAt = Date.now();
+  var plain = function(t){ return t === undefined || t === null ? undefined : String(t).split(MARK).join(''); };
+  var s = STEP, snap = { scr:current(), b:BUILD, view:{ w:innerWidth, h:innerHeight } };
+  if(RUN && RUN.item){ snap.item = RUN.item.name ? '(name)' : RUN.item.g || null; snap.name = RUN.item.name ? 1 : undefined; snap.steps = RUN.steps.join(''); snap.si = RUN.si; }
+  if(s){
+    snap.st = s.st; snap.g = s.g && s.g.id;
+    snap.ready = !!s.ready; snap.watch = s.watch ? 1 : undefined; snap.intro = s.intro ? 1 : undefined;
+    /* her last 20 lines: the sync service drops a row over 20 kB */
+    var lines = s.strokes || s.raw || [];
+    snap.ink = P.pack(lines.slice(-20)); snap.drawing = s.cur ? 1 : undefined;
+    if(lines.length > 20) snap.inkFrom = lines.length - 20;
+    if(s.last) snap.last = { e:(s.last.errors || []).join(','), sc:s.last.score, other:s.last.other || undefined };
+    if(s.tries !== undefined) snap.tries = s.tries;
+    if(s.tr) snap.tracer = { i:s.i, at:s.tr.map(function(t){ return t.idx; }) };
+    if(s.helped) snap.helped = 1;
+    if(s.overlay) snap.overlay = s.overlay;
+  }
+  snap.voice = { live:VOX.live.map(function(u){ return plain(u.text); }),
+                 queue:Q.map(function(x){ return x.text !== undefined ? plain(x.text) : 'clip:' + x.id; }),
+                 clip:PUMP.seg ? PUMP.seg.id : undefined, last:plain(VOX.last),
+                 speaking:('speechSynthesis' in window) ? speechSynthesis.speaking : undefined };
+  var x = JSON.stringify(snap);
+  if(x.length > 18000){ snap.ink = []; snap.inkCut = 1; x = JSON.stringify(snap); }
+  var row = stamp({ k:'B', l:S.lang, x:x });
+  if(S.practice) row.p = 1;
+  LOG.push(row); saveLog(); cloudSync(true);
+  var f = $('bugflash'); f.classList.add('on');
+  clearTimeout(bugMark.t); bugMark.t = setTimeout(function(){ f.classList.remove('on'); }, 1000);
+}
 $('gear').addEventListener('touchstart', armGear, { passive:true });
 $('gear').addEventListener('touchend', disarmGear);
+/* a touch the system takes over (Control Center sits in this corner): no
+   panel 1.2 s later, and not a tap                                       */
+$('gear').addEventListener('touchcancel', function(){ clearTimeout(press); pressAt = 0; });
 $('gear').addEventListener('mousedown', armGear);
 $('gear').addEventListener('mouseup', disarmGear);
 var panelFrom = 'home';

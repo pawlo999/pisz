@@ -293,6 +293,24 @@ Still slipping: G with its bar left off (5 of 12 — the bar is shorter
 than the reach), M without its last stem (3 of 12), a 4 stopped at its
 corner (1 of 12).
 
+## 7g · 12 Oct: his 🐞 bug mark (b11), and the A of her name (his calls)
+
+- **1a — two quick taps on ⚙️** (the gear in the corner of her screen;
+  holding it 1.2 s still opens the parent panel) write a 🐞 row into her log:
+  the screen, the letter and step, her ink so far (the line she is drawing
+  too), the judge's last word, what the voice is saying and has waiting, the
+  screen size and build. No sound, her step goes on, a 🐞 shows for a second.
+  The row has no letter or step of its own, so it never counts towards her
+  progress; it is sent to the sync service at once, in a test run too
+  (marked `p:1`). A touch's own mouse events are not a second tap. Read with
+  `python3 tools/her-log.py --marks`. Pisz only — Litery has no mark.
+- **2a — her name is judged like any letter:** the A of her name of 10 Oct
+  06:32, whose right leg stops just under the bar, is now "Dokończ literkę!",
+  with 6.5 s to add the rest.
+- `tools/her-log.py` refuses any path inside any git checkout unless that
+  checkout ignores it; the same guard is copied into `litery/tools/`, and
+  each repo's tests compare the two copies when both are checked out.
+
 ## 8 · Next
 
 | | Slice | State |
@@ -308,8 +326,9 @@ corner (1 of 12).
 ## 9 · Tests
 
     python3 serve.py 8791                     # in one shell
-    node test/engine.test.mjs                 # 87 checks, ~2 min
+    node test/engine.test.mjs                 # 89 checks, ~2 min
     node test/worker.test.mjs                 # 25 checks
+    node test/tools.test.mjs                  # tools/her-log.py: guard, arguments, what --marks prints; 14 checks (13 without litery beside it), no network
     bash test/e2e-both.sh                     # WebKit and Chromium at once, 358 checks, ~13 min
     PISZ_URL=http://localhost:8791/ node test/e2e.test.mjs   # the same one engine after the other, ~25 min
     PISZ_URL=http://localhost:8791/ node test/sounds.test.mjs  # recording + playback, Chromium, 49 checks

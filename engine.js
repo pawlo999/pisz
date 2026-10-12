@@ -1046,6 +1046,7 @@ P.summary = function(log, now){
   log.forEach(function(r){
     if(!r || typeof r.t !== 'number') return;
     if(r.ag && !r.ok) return;                      /* a once-more miss: not counted */
+    if(r.k === 'B') return;                        /* his 🐞 mark: not a day she played */
     var d = dayKey(r.t), o = days[d] || (days[d] = { steps:0, ok:0, ms:0, sessions:0, prizes:[] , first:r.t, last:r.t });
     if(r.k === 'S'){ o.sessions++; if(r.x) o.prizes.push(r.x); }
     else if(r.g){ o.steps++; if(r.ok) o.ok++; o.ms += Math.min(r.ms || 0, 120000); }

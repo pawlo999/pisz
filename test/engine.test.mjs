@@ -297,6 +297,14 @@ section('rivals: what she might have written instead');
 section('what she knows, rebuilt from the log');
 const DAY = 86400000, T0 = Date.UTC(2026, 9, 1, 9);
 {
+  /* his 🐞 marks sit in her log (12 Oct): never a level, never a day she played */
+  const base = [{ t: T0, g: 'L', st: 'R', ok: 1 }, { t: T0 + 1, g: 'L', st: 'T', ok: 1 }, { t: T0 + 2, g: 'L', st: 'C', ok: 1 }];
+  const marked = base.concat([{ t: T0 + 3 * DAY, k: 'B', l: 'pl', p: 1, x: JSON.stringify({ scr: 'write', st: 'C', g: 'L', ink: [] }) }]);
+  const days = l => Object.keys(P.summary(l, T0 + 4 * DAY).days);
+  ok(JSON.stringify(P.rebuild(marked)) === JSON.stringify(P.rebuild(base)) && days(marked).length === days(base).length,
+     'a 🐞 mark in her log changes no level and adds no day she played', JSON.stringify([days(base), days(marked)]));
+}
+{
   const log = [
     { t: T0, g: 'L', st: 'R', ok: 1 }, { t: T0 + 1, g: 'L', st: 'T', ok: 1 }, { t: T0 + 2, g: 'L', st: 'C', ok: 1 },
   ];

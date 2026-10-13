@@ -3,7 +3,7 @@
 (function () {
 'use strict';
 
-var BUILD = 12;
+var BUILD = 13;
 /* The sync service. The URL is public; the key the parent pastes in is the
    only credential, because there is no login for a four-year-old.        */
 var SYNC_URL = 'https://pisz-sync.pawlo999.workers.dev';
@@ -75,6 +75,7 @@ var T_ = {
        seeOrder:'Zobacz, od której kreski zaczynamy.', seeNext:'Zobacz, która kreska jest następna.',
        memNamed:'Teraz napisz ją sama!',
        keep:'Zostawmy tę pierwszą, była ładna.', finish:'Dokończ literkę!',
+       bigger:'Narysuj większą!', biggerShape:'Narysuj to większe!',
        mark:{ k:'A kreska?', p:'A kropka?', o:'A ogonek?', r:'A kółeczko?' },
        mirror:'Prawie! Ta literka patrzy w drugą stronę.',
        end:'Brawo %s!', endSub:'Pokaż mamie albo tacie!', night:'Na dzisiaj koniec. Do jutra!',
@@ -94,6 +95,7 @@ var T_ = {
        seeOrder:'Se hvilken strek vi begynner med.', seeNext:'Se hvilken strek som kommer nå.',
        memNamed:'Nå skriver du den selv!',
        keep:'Vi beholder den første, den var fin.', finish:'Gjør ferdig bokstaven!',
+       bigger:'Tegn den større!', biggerShape:'Tegn den større!',
        mark:{ k:'Og streken?', p:'Og prikken?', o:'Og halen?', r:'Og ringen?' },
        mirror:'Nesten! Den bokstaven snur andre veien.',
        end:'Bra jobba %s!', endSub:'Vis mamma eller pappa!', night:'Det var alt for i dag. Vi ses i morgen!',
@@ -1219,7 +1221,7 @@ function freeStep(id, st, opt){
   opt = opt || {};
   var g = G[id];
   var me = { st:st, g:g, strokes:[], cur:null, ready:false, judgeT:null, idleT:null, tries:0,
-             helped:false, last:null, opt:opt, undos:0 };
+             helped:false, last:null, opt:opt, undos:0, smallAsks:0 };
   function paintGuide(){
     clear('guide'); clear('dot'); lines(cx.guide);
     /* after a first miss: the letter in dots under her next try (his call
@@ -1274,6 +1276,8 @@ function freeStep(id, st, opt){
     me.last = r;
     if(r.ok){ success(r); return; }
     var expect = g.strokes.length;
+    /* too small to see: asked for a bigger one before anything else is said */
+    if(askBigger(r)) return;
     /* clearly more than a letter's worth of ink: start again */
     if(me.strokes.length > expect * 2 + 3){ fail(r); return; }
     /* not finished — her V for a Y (11 Oct): asked once for the rest, and
@@ -1341,8 +1345,27 @@ function freeStep(id, st, opt){
       }, true);
     }, 150);
   }
+  /* Too small to see (his 1a, 13 Oct; size is not a preschool skill — MEN
+     2017, Marr et al. 2001): once she has drawn as many lines as the letter
+     has and the judge says her ink is under a quarter of the letter's body,
+     it is not a miss — "Narysuj większą!", her ink goes, no dots. Not over
+     a mirror image or another letter (those are shown as they are), not
+     while the guide shows it, and twice at most: the third tiny try is a
+     miss like any other, so the road still finishes every letter.        */
+  function askBigger(r){
+    if(!r || !r.small || me.watch || me.smallAsks >= 2) return false;
+    if(me.strokes.length < g.strokes.length) return false;
+    if(r.errors.indexOf('mirror') >= 0 || r.errors.indexOf('other') >= 0) return false;
+    me.smallAsks++;
+    clearTimeout(me.idleT); clearTimeout(me.judgeT);
+    record({ k:'Z', x:id, q:st, n:me.strokes.length, e:r.errors.join(','), sz:r.size });
+    me.strokes = []; me.askedRest = false; me.markSaid = false; paintInk();
+    say(g.kind === 'shape' ? tx().biggerShape : tx().bigger);
+    return true;
+  }
   function fail(r){
     if(STEP !== me) return;
+    if(askBigger(r)) return;
     me.ready = false; clearTimeout(me.idleT); clearTimeout(me.judgeT);
     me.tries++;
     stepDone(false, { e:(r && r.errors || []).join(','), sc:r ? r.score : 0, n:me.strokes.length,
@@ -1584,8 +1607,9 @@ $('watch').addEventListener('click', function(){
      step that is over                                                  */
   if(!STEP.ready || STEP.watch) return;
   if(STEP.st === 'M') STEP.helped = true;
-  /* she watches it, then carries on (10 Oct) */
+  /* she watches it, then carries on (10 Oct); nothing judged meanwhile */
   var me = STEP;
+  clearTimeout(me.idleT); clearTimeout(me.judgeT);
   me.ready = false; me.watch = true; me.told = false;
   demo(id, 'pad', function(){ if(STEP !== me) return; me.watch = false; me.ready = true; if(me.relayout) me.relayout(); });
 });

@@ -308,6 +308,21 @@ const DAY = 86400000, T0 = Date.UTC(2026, 9, 1, 9);
   const days = l => Object.keys(P.summary(l, T0 + 4 * DAY).days);
   ok(JSON.stringify(P.rebuild(marked)) === JSON.stringify(P.rebuild(base)) && days(marked).length === days(base).length,
      'a 🐞 mark in her log changes no level and adds no day she played', JSON.stringify([days(base), days(marked)]));
+  /* 13 Oct: the judge's size, on the ink it looks at, against the letter's body */
+  const scale = (g, k, at = { x: 40, y: 40 }) => g.strokes.map(s => s.pts.map(p => ({ x: at.x + (p.x - g.box.cx) * k, y: at.y + (p.y - g.box.cy) * k })));
+  const all = P.allFor('pl', false);
+  const tiny = P.verify(scale(P.G.S, 0.14), 'S', 'gentle', all), whole = P.verify(scale(P.G.S, 1), 'S', 'gentle', all);
+  const stippled = [].concat(...P.G.S.strokes.map(s => P.geo.bySpacing(s.pts, 6).map(p => [p, { x: p.x + 1, y: p.y + 1 }])));
+  const st = P.verify(stippled, 'S', 'gentle', all);
+  const stray = P.verify(scale(P.G.S, 0.12).concat([[{ x: 95, y: 95 }, { x: 96, y: 96 }]]), 'S', 'gentle', all);
+  const oBody = P.verify(scale(P.G.O, 0.3), 'Ó', 'gentle', all);
+  ok(tiny.small && !whole.small && !st.small && stray.small && !oBody.small,
+     'size: a tiny S is small, a whole one is not, a big dotted S is not, a tiny S with a stray dab still is, an O body at 30% for Ó is not',
+     JSON.stringify([tiny.size, whole.size, st.size, stray.size, oBody.size]));
+  /* 13 Oct: "draw it bigger" rows (k:'Z') are not attempts either */
+  const small = base.concat([{ t: T0 + 2 * DAY, k: 'Z', l: 'pl', x: 'L', q: 'C', n: 6 }, { t: T0 + 4 * DAY, k: 'Q', l: 'pl', x: 'cut | w dół' }]);
+  ok(JSON.stringify(P.rebuild(small)) === JSON.stringify(P.rebuild(base)) && days(small).length === days(base).length,
+     'a "narysuj większą" (or a sentence cut short) in her log is not a miss and not a day she played', JSON.stringify(days(small)));
 }
 {
   const log = [

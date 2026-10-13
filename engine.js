@@ -733,6 +733,17 @@ P.judge = function(strokes, id, strictness, fast){
   var g = G[id], cfg = P.STRICT[strictness || 'gentle'] || P.STRICT.gentle;
   var res = { ok:false, id:id, errors:[], strokes:strokes.length, score:0 };
   var U = Array.isArray(strokes.U) ? strokes.U : prepUser(strokes, g);
+  /* how big her ink is against the letter's body (accents left out): the
+     ink the judge looks at, specks dropped — or, when only specks are
+     left, those. small = under a quarter (his 1a, 13 Oct: "draw it
+     bigger" instead of a miss; size itself is never judged)              */
+  var body = g.mark.length ? g.body : g.box, full = Math.max(body.w, body.h) || 1;
+  var inkPts = [].concat.apply([], U.length ? U : (strokes || []).filter(function(s){ return s && s.length; }));
+  if(inkPts.length){
+    var ib = bbox(inkPts);
+    res.size = Math.round(100 * Math.max(ib.w, ib.h) / full) / 100;
+    res.small = res.size < 0.25;
+  }
   if(!U.length){ res.errors.push('empty'); return res; }
 
   var pr = prep(g, false, cfg.tol);
@@ -1051,7 +1062,9 @@ P.summary = function(log, now){
   log.forEach(function(r){
     if(!r || typeof r.t !== 'number') return;
     if(r.ag && !r.ok) return;                      /* a once-more miss: not counted */
-    if(r.k === 'B') return;                        /* his 🐞 mark: not a day she played */
+    /* a day she played is a day with a step or a sitting in it — not his
+       🐞 mark, a "draw it bigger", a sentence cut short or a report     */
+    if(!(r.g && r.st) && r.k !== 'S') return;
     var d = dayKey(r.t), o = days[d] || (days[d] = { steps:0, ok:0, ms:0, sessions:0, prizes:[] , first:r.t, last:r.t });
     if(r.k === 'S'){ o.sessions++; if(r.x) o.prizes.push(r.x); }
     else if(r.g){ o.steps++; if(r.ok) o.ok++; o.ms += Math.min(r.ms || 0, 120000); }

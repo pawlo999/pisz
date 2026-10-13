@@ -353,7 +353,17 @@ in test mode. What he reported, what it was, what changed:
    came out big because the dots are full size. Research (A): size is a
    school-age skill, not a preschool target (MEN podstawa 2017; Marr et al.
    2001; Lindsay & McLennan 1983). One tiny try (an S 14 units tall, six
-   dabs) counted as a miss — his call open: ask for a bigger one instead.
+   dabs) counted as a miss — his call 1a (13 Oct, b13): once she has drawn
+   as many lines as the letter has, ink under a quarter of the letter's body
+   (accents aside; measured by the judge on the ink it looks at, so a stray
+   dab does not count — `res.small`) is not a miss: she hears "Narysuj
+   większą!" ("Narysuj to większe!" for a shape), her ink goes, no dots come,
+   and the step waits. Not over a mirror image or another letter, not while
+   the guide shows it, twice at most — the third tiny try is a miss, so the
+   road still finishes every letter. A tiny letter the judge accepts simply
+   counts (size is never judged). Logged as k:'Z' (letter, step, errors,
+   size), never progress; a day she played is now only a day with a step or
+   a sitting (marks, cut sentences and reports no longer add days).
    (B) There is no official Polish stroke order for a printed N; the app's
    model is the common one (Handwriting Without Tears: down, back to the top,
    diagonal, up). A one-go N is not wrong by any study; forcing an order under
@@ -395,10 +405,10 @@ in test mode. What he reported, what it was, what changed:
 ## 9 · Tests
 
     python3 serve.py 8791                     # in one shell
-    node test/engine.test.mjs                 # 90 checks, ~2 min
+    node test/engine.test.mjs                 # 92 checks, ~2 min
     node test/worker.test.mjs                 # 25 checks
     node test/tools.test.mjs                  # tools/her-log.py: guard, arguments, what --marks prints; 14 checks (13 without litery beside it), no network
-    bash test/e2e-both.sh                     # WebKit and Chromium at once, 424 checks, ~15 min
+    bash test/e2e-both.sh                     # WebKit and Chromium at once, 444 checks, ~15 min
     PISZ_URL=http://localhost:8791/ node test/e2e.test.mjs   # the same one engine after the other, ~25 min
     PISZ_URL=http://localhost:8791/ node test/sounds.test.mjs  # recording + playback, Chromium, 49 checks
 

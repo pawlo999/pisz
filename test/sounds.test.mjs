@@ -173,6 +173,15 @@ console.log('\nPisz plays the recording, then says the word');
   ok(rest && clip && rest.t - clip.t >= 500, `"jak sowa" follows when the recording ends (${rest && Math.round(rest.t - clip.t)} ms after it began)`);
   ok(!r.said.some(s => /^s jak/.test(s.text)), 'the voice never says the letter\'s name as well');
 
+  /* the intro of a recorded letter: [its sound] "jak sowa" then "patrz!" — never ". patrz!",
+     which the iPad voice read aloud as "kropka, patrz" (13 Oct)                            */
+  r = await page.evaluate(() => new Promise(res => {
+    const a = window.__pisz, n = window.__saidAt.length; a.hush();
+    a.say(a.letterPhrase('S') + '. ' + 'Patrz!');
+    setTimeout(() => res(window.__saidAt.slice(n).map(s => s.text)), 3500);
+  }));
+  ok(r.join('|') === ' jak sowa|patrz!' && !r.some(t => /^[.,;:]/.test(t)), 'a recorded letter\'s intro: "jak sowa", then "patrz!" — no full stop read aloud', JSON.stringify(r));
+
   /* the game waits for the recording as it waits for the voice */
   r = await page.evaluate(() => new Promise(res => {
     const a = window.__pisz, t0 = performance.now(); let busyMid = null;

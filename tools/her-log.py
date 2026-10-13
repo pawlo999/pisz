@@ -152,6 +152,8 @@ def show(r):
     x = {k: v for k, v in r.items() if k not in ('t', 's', 'x')}
     if r.get('st') == 'N':
         x['g'] = '(name)'
+    if r.get('k') == 'Z':
+        x['x'] = '(name)' if r.get('q') == 'N' else r.get('x')
     print(t.strftime('%H:%M:%S'), json.dumps(x, ensure_ascii=False), '| strokes' if r.get('s') else '', '| text' if 'x' in r else '')
 
 print('read' if src else 'saved', len(log), 'rows', 'from' if src else 'to', out, '| updated', utc(d.get('updated', 0)).strftime('%Y-%m-%d %H:%M UTC'),

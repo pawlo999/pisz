@@ -645,6 +645,74 @@ async function suite(engine) {
     await page.context().close();
   }
 
+  console.log('\n13 Oct: too small to see — "narysuj większą!", not a miss (his 1a)');
+  {
+    // six dabs for an S (her S of 12 Oct 17:34): not a miss, no dots — "narysuj większą!", then her real S counts
+    const { page, errors, said } = await open(b, { seed: { name: 'ADA', lang: 'pl' }, log: seedLog([...SHAPES2, ['S', 2]]) });
+    await enter(page);
+    await sitting(page, [{ g: 'S', steps: ['C'] }]);
+    await ready(page, 'C');
+    const dabs = Array.from({ length: 6 }, (_, i) => [{ x: 30 + (i % 3) * 3, y: 40 + Math.floor(i / 3) * 4 }, { x: 31 + (i % 3) * 3, y: 41 + Math.floor(i / 3) * 4 }]);
+    await draw(page, dabs);
+    await until(page, () => window.__said.includes('narysuj większą!'), null, 9000, 'bigger');
+    const st1 = await page.evaluate(() => ({ st: window.__pisz.STEP.st, ready: window.__pisz.STEP.ready, overlay: window.__pisz.STEP.overlay || null, ink: window.__pisz.STEP.strokes.length,
+                                            misses: window.__pisz.LOG.filter(r => r.g === 'S' && r.st === 'C').length, z: window.__pisz.LOG.filter(r => r.k === 'Z').length }));
+    ok(st1.st === 'C' && st1.ready && !st1.overlay && st1.ink === 0 && st1.misses === 0 && st1.z === 1,
+       'dabs for an S: "narysuj większą!", her ink goes, no miss, no dots, the step waits', JSON.stringify(st1));
+    await draw(page, templateStrokes(P, 'S'));
+    await until(page, () => window.__pisz.current() !== 'write' || (window.__pisz.LOG.some(r => r.g === 'S' && r.st === 'C')), null, 9000, 'S judged');
+    ok((await rowsOf(page, 'S')).some(x => x.st === 'C' && x.ok === 1), 'then her S, drawn big, counts');
+    ok(!errors.length, 'no errors', errors.join(' | '));
+    await page.context().close();
+  }
+  {
+    // a tiny wrong shape gets "narysuj to większe!"; a tiny right one simply counts (size is not judged)
+    const { page, errors } = await open(b, { seed: { name: 'ADA', lang: 'pl' }, log: seedLog([...SHAPES2, ['+', 2]]) });
+    await enter(page);
+    await sitting(page, [{ g: '+', steps: ['C'] }]);
+    await ready(page, 'C');
+    const seg = (a, z) => Array.from({ length: 8 }, (_, i) => ({ x: a.x + (z.x - a.x) * i / 7, y: a.y + (z.y - a.y) * i / 7 }));
+    await draw(page, [seg({ x: 44, y: 45 }, { x: 47, y: 53 }), seg({ x: 47, y: 53 }, { x: 50, y: 45 })]);
+    await until(page, () => window.__said.includes('narysuj to większe!'), null, 12000, 'bigger shape');
+    ok(await page.evaluate(() => window.__pisz.LOG.filter(r => r.g === '+' && r.st === 'C').length === 0), 'a tiny wrong shape for "+": "narysuj to większe!", no miss');
+    await draw(page, [seg({ x: 50, y: 44 }, { x: 50, y: 56 }), seg({ x: 44, y: 50 }, { x: 56, y: 50 })]);
+    await until(page, () => window.__pisz.LOG.some(r => r.g === '+' && r.st === 'C'), null, 12000, 'judged');
+    ok((await rowsOf(page, '+')).some(x => x.st === 'C' && x.ok === 1), 'a tiny right "+" counts: size is not judged');
+    ok(!errors.length, 'no errors', errors.join(' | '));
+    await page.context().close();
+  }
+  {
+    // twice at most: the third tiny try is a miss like any other — the dots come, so the road still finishes it
+    const { page, errors, said } = await open(b, { seed: { name: 'ADA', lang: 'pl' }, log: seedLog([...SHAPES2, ['L', 2]]) });
+    await enter(page);
+    await sitting(page, [{ g: 'L', steps: ['C'] }]);
+    await ready(page, 'C');
+    const tinyZ = [Array.from({ length: 8 }, (_, i) => ({ x: 40 + (i % 2) * 3, y: 40 + i }))];   /* a tiny zigzag for L */
+    for (let k = 0; k < 3; k++) {
+      await draw(page, tinyZ);
+      await sleep(k < 2 ? 2600 : 300);   /* the voice done before the next try */
+    }
+    await until(page, () => window.__pisz.STEP && window.__pisz.STEP.overlay === 'dots', null, 20000, 'dots after the third');
+    const t3 = await page.evaluate(() => ({ z: window.__pisz.LOG.filter(r => r.k === 'Z').length, miss: window.__pisz.LOG.filter(r => r.g === 'L' && r.st === 'C' && !r.ok).length }));
+    ok(t3.z === 2 && t3.miss === 1 && (await said()).filter(x => x === 'narysuj większą!').length === 2, 'asked twice to draw bigger; the third tiny try is a miss, and the dots come', JSON.stringify(t3));
+    ok(!errors.length, 'no errors', errors.join(' | '));
+    await page.context().close();
+  }
+  {
+    // her name: a tiny letter is asked bigger and the name waits on that letter
+    const { page, errors } = await open(b, { seed: { name: 'ADA', lang: 'pl' }, log: seedLog([...SHAPES2, ['A', 3], ['D', 3]]) });
+    await enter(page);
+    await sitting(page, [{ g: 'ADA', name: true, steps: ['N'] }]);
+    await until(page, () => window.__pisz.STEP && window.__pisz.STEP.st === 'N' && window.__pisz.STEP.ready, null, 20000, 'name step');
+    /* three tiny strokes side by side, as many as the A has: tiny, and not an A */
+    await draw(page, [0, 1, 2].map(k => Array.from({ length: 6 }, (_, i) => ({ x: 40 + k * 3, y: 45 + i * 1.6 }))));
+    await until(page, () => window.__said.includes('narysuj większą!'), null, 12000, 'bigger in the name');
+    const n1 = await page.evaluate(() => ({ g: window.__pisz.STEP.g.id, rows: window.__pisz.LOG.filter(r => r.st === 'N').length }));
+    ok(n1.g === 'A' && n1.rows === 0, 'in her name: a tiny letter is asked bigger, and the name waits on that letter', JSON.stringify(n1));
+    ok(!errors.length, 'no errors', errors.join(' | '));
+    await page.context().close();
+  }
+
   console.log('\n12 Oct: his 🐞 bug mark — two quick taps on ⚙️');
   {
     const { page, errors, said } = await open(b, { seed: { name: 'ADA', lang: 'pl' }, log: seedLog([...SHAPES2, ['T', 2]]) });

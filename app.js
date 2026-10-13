@@ -3,7 +3,7 @@
 (function () {
 'use strict';
 
-var BUILD = 11;
+var BUILD = 12;
 /* The sync service. The URL is public; the key the parent pastes in is the
    only credential, because there is no login for a four-year-old.        */
 var SYNC_URL = 'https://pisz-sync.pawlo999.workers.dev';
@@ -66,12 +66,14 @@ var SHAPE = {
 var LINK = { pl:' jak ', nb:' som i ' };
 var T_ = {
   pl:{ hi:'Cześć %s!', path:'Dzisiaj piszemy', watch:'Patrz!', turn:'Teraz ty!', dots:'Po kropkach!',
-       copy:'Teraz bez kropek!', mem:'Napisz %w', memGap:'Napisz literkę, której brakuje: %w',
+       mem:'Napisz %w', memGap:'Napisz literkę, której brakuje: %w',
        shape:'Narysuj %w', start:'Zacznij od zielonej kropki.', resume:'Rysuj dalej od zielonej kropki.', again:'Spróbujmy jeszcze raz.',
        look:'Popatrz jeszcze raz.', name:'Napisz swoje imię!', nameDone:'To twoje imię!',
        praise:['Brawo!','Super!','Pięknie!','Ekstra!','Ale ładnie!'],
        fromTop:'Od samej góry!', rightWay:'W dobrą stronę!',
        seeStart:'Zobacz, skąd zaczynamy.', seeWay:'Zobacz, w którą stronę.', first:'Najpierw popatrz!',
+       seeOrder:'Zobacz, od której kreski zaczynamy.', seeNext:'Zobacz, która kreska jest następna.',
+       memNamed:'Teraz napisz ją sama!',
        keep:'Zostawmy tę pierwszą, była ładna.', finish:'Dokończ literkę!',
        mark:{ k:'A kreska?', p:'A kropka?', o:'A ogonek?', r:'A kółeczko?' },
        mirror:'Prawie! Ta literka patrzy w drugą stronę.',
@@ -79,14 +81,18 @@ var T_ = {
        paper:'A teraz napisz jedną literkę kredką na kartce i pokaż mamie albo tacie!',
        book:'Moje literki',
        cue:{ d:'w dół', a:'w prawo', s:'na skos', r:'dookoła', b:'brzuszek', u:'w górę i w dół',
-             w:'fala', z:'zygzak', q:'kwadrat', k:'kreska', o:'ogonek', p:'kropka' } },
+             w:'fala', z:'zygzak', q:'kwadrat', k:'kreska', o:'ogonek', p:'kropka', g:'w górę' },
+       /* a mark is the last thing drawn: "i kropka", never "kropka" alone (12 Oct) */
+       cueMark:{ k:'i kreska', p:'i kropka', o:'i ogonek', r:'i kółeczko' } },
   nb:{ hi:'Hei %s!', path:'I dag skriver vi', watch:'Se her!', turn:'Nå er det din tur!', dots:'Følg prikkene!',
-       copy:'Nå uten prikker!', mem:'Skriv %w', memGap:'Skriv bokstaven som mangler: %w',
+       mem:'Skriv %w', memGap:'Skriv bokstaven som mangler: %w',
        shape:'Tegn %w', start:'Begynn ved den grønne prikken.', resume:'Fortsett fra den grønne prikken.', again:'Vi prøver en gang til.',
        look:'Se en gang til.', name:'Skriv navnet ditt!', nameDone:'Det er navnet ditt!',
        praise:['Bra!','Flott!','Kjempebra!','Supert!','Så fint!'],
        fromTop:'Rett fra toppen!', rightWay:'Riktig vei!',
        seeStart:'Se hvor vi begynner.', seeWay:'Se hvilken vei.', first:'Se først!',
+       seeOrder:'Se hvilken strek vi begynner med.', seeNext:'Se hvilken strek som kommer nå.',
+       memNamed:'Nå skriver du den selv!',
        keep:'Vi beholder den første, den var fin.', finish:'Gjør ferdig bokstaven!',
        mark:{ k:'Og streken?', p:'Og prikken?', o:'Og halen?', r:'Og ringen?' },
        mirror:'Nesten! Den bokstaven snur andre veien.',
@@ -94,7 +100,8 @@ var T_ = {
        paper:'Skriv en av bokstavene med fargestift på et ark, og vis mamma eller pappa!',
        book:'Bokstavene mine',
        cue:{ d:'ned', a:'bortover', s:'på skrå', r:'rundt', b:'bue', u:'opp og ned',
-             w:'bølge', z:'sikksakk', q:'firkant', k:'strek', o:'hale', p:'prikk' } }
+             w:'bølge', z:'sikksakk', q:'firkant', k:'strek', o:'hale', p:'prikk', g:'opp' },
+       cueMark:{ k:'og streken', p:'og prikken', o:'og halen', r:'og ringen' } }
 };
 var GUESTS = ['🦊','🐼','🐨','🦁','🐯','🐸','🐵','🦄','🐧','🐢','🦋','🐞','🐙','🦒','🐘','🦔','🐿️','🦩','🦜','🐬'];
 
@@ -557,23 +564,102 @@ function lines(c){
   [0, 100].forEach(function(y){ c.beginPath(); c.moveTo(14, Y(y)); c.lineTo(L.w - 14, Y(y)); c.stroke(); });
   c.restore();
 }
-/* the green dot: where a stroke starts, or (from > 0) where she stopped */
-function startDot(c, st, n, pulse, from){
-  from = from || 0;
-  var p = st.pts[from], r = 7.5 * L.k * (pulse || 1);
+/* The green start (his idea, 12 Oct): a small dot where the line starts
+   (or, from > 0, where she stopped), an arrow a little along it, and the
+   line's number beside the arrow. With the number inside the dot, E's two
+   lines from one corner did not say which goes first; now "1" sits by the
+   arrow down and "2" by the arrow across. The number takes the side of
+   its arrow farther from the letter's other lines.                     */
+function arrowOf(st, from){
+  var n = st.pts.length - 1;
+  if(st.dot || n - from <= 14) return null;
+  return { a:st.pts[Math.min(n, from + 12)], b:st.pts[Math.min(n, from + 22)] };
+}
+var SPOTS = typeof WeakMap === 'function' ? new WeakMap() : null, LAYOUT = {};
+/* every line's number at its start, laid out together (line by line, each
+   keeping clear of the numbers before it): what the dots show at once     */
+function numberLayout(g){
+  if(LAYOUT[g.id]) return LAYOUT[g.id];
+  var placed = [], out = g.strokes.map(function(st){
+    if(st.dot) return null;
+    var q = spotFor(st, 0, g, placed);
+    placed.push(q);
+    return q;
+  });
+  return (LAYOUT[g.id] = out);
+}
+function numberSpot(st, from, g){
+  if(!from && g){ var i = g.strokes.indexOf(st); if(i >= 0 && numberLayout(g)[i]) return numberLayout(g)[i]; }
+  var key = from + '|' + (g ? g.id : ''), memo = SPOTS && (SPOTS.get(st) || (SPOTS.set(st, {}), SPOTS.get(st)));
+  if(memo && memo[key]) return memo[key];
+  var out = spotFor(st, from, g, []);
+  if(memo) memo[key] = out;
+  return out;
+}
+function spotFor(st, from, g, placed){
+  var p = st.pts[from], ar = arrowOf(st, from), a, b;
+  if(ar){ a = ar.a; b = ar.b; }
+  else {
+    /* no room for an arrow: beside the start, across its own way */
+    var q = st.pts[Math.min(st.pts.length - 1, from + 3)], o = st.pts[Math.max(0, from - 3)];
+    a = p; b = (q.x !== p.x || q.y !== p.y) ? q : (o.x !== p.x || o.y !== p.y) ? { x:2 * p.x - o.x, y:2 * p.y - o.y } : { x:p.x + 1, y:p.y };
+  }
+  var dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 1, nx = -dy / d, ny = dx / d;
+  var m = { x:(a.x + b.x) / 2, y:(a.y + b.y) / 2 };
+  /* what it must keep clear of: the other lines, and its own line away
+     from the arrow (the part still to trace when she resumes mid-line)  */
+  var others = [];
+  (g ? g.strokes : [st]).forEach(function(o){
+    if(o.dot) return;
+    o.pts.forEach(function(q, k){
+      if(k % 3) return;
+      if(o === st && k >= from - 4 && k <= from + 26) return;
+      others.push(q);
+    });
+  });
+  var room = function(c){
+    var r = others.length ? Math.min.apply(null, others.map(function(q){ return Math.hypot(q.x - c.x, q.y - c.y); })) : 99;
+    /* a number needs about twice the room from another number as from a line */
+    placed.forEach(function(q){ r = Math.min(r, (Math.hypot(q.x - c.x, q.y - c.y) - 6) / 1.4); });
+    return r;
+  };
+  var best = null, score = -1;
+  [m, a, b].forEach(function(base){
+    [11, -11].forEach(function(r){
+      var c = { x:base.x + nx * r, y:base.y + ny * r }, v = room(c) - (base === m ? 0 : 1.5);
+      if(v > score){ score = v; best = c; }
+    });
+  });
+  return { x:best.x, y:best.y, ax:m.x, ay:m.y };
+}
+/* opt.g: the letter, so the number keeps clear of its other lines;
+   opt.only 'arrow' | 'number': one half, so on the dots every dot and
+   arrow is drawn before any number                                      */
+function startDot(c, st, n, pulse, from, opt){
+  from = from || 0; opt = opt || {};
+  var p = st.pts[from], k = pulse || 1;
   c.save();
-  c.fillStyle = '#16a34a'; c.beginPath(); c.arc(X(p.x), Y(p.y), r, 0, 7); c.fill();
-  c.fillStyle = '#fff'; c.font = '800 ' + Math.round(9 * L.k) + 'px ui-rounded,system-ui,sans-serif';
-  c.textAlign = 'center'; c.textBaseline = 'middle';
-  c.fillText(String(n), X(p.x), Y(p.y) + 0.5);
-  /* which way to go: an arrow a little along the stroke */
-  if(!st.dot && st.pts.length - from > 14){
-    var a = st.pts[Math.min(st.pts.length - 1, from + 12)], b = st.pts[Math.min(st.pts.length - 1, from + 22)];
-    var ang = Math.atan2(b.y - a.y, b.x - a.x), hx = X(b.x), hy = Y(b.y), s = 5 * L.k;
-    c.strokeStyle = '#16a34a'; c.lineWidth = 2.6 * L.k; c.lineCap = 'round'; c.lineJoin = 'round';
-    c.beginPath(); c.moveTo(X(a.x), Y(a.y)); c.lineTo(hx, hy);
-    c.moveTo(hx - s * Math.cos(ang - 0.6), hy - s * Math.sin(ang - 0.6)); c.lineTo(hx, hy);
-    c.lineTo(hx - s * Math.cos(ang + 0.6), hy - s * Math.sin(ang + 0.6)); c.stroke();
+  c.fillStyle = '#16a34a'; c.strokeStyle = '#16a34a'; c.lineCap = 'round'; c.lineJoin = 'round';
+  if(opt.only !== 'number'){
+    c.beginPath(); c.arc(X(p.x), Y(p.y), 4.5 * L.k * k, 0, 7); c.fill();
+    var ar = arrowOf(st, from);
+    if(ar){
+      var ang = Math.atan2(ar.b.y - ar.a.y, ar.b.x - ar.a.x), hx = X(ar.b.x), hy = Y(ar.b.y), s = 5 * L.k;
+      c.lineWidth = 2.6 * L.k;
+      c.beginPath(); c.moveTo(X(ar.a.x), Y(ar.a.y)); c.lineTo(hx, hy);
+      c.moveTo(hx - s * Math.cos(ang - 0.6), hy - s * Math.sin(ang - 0.6)); c.lineTo(hx, hy);
+      c.lineTo(hx - s * Math.cos(ang + 0.6), hy - s * Math.sin(ang + 0.6)); c.stroke();
+    }
+  }
+  /* the number in green, on its own — no dot around it, so the only green
+     dot is where she starts (his pick, 12 Oct; a dark number was the other
+     choice)                                                              */
+  if(opt.only !== 'arrow'){
+    var q = numberSpot(st, from, opt.g);
+    c.font = '800 ' + Math.round(11 * L.k) + 'px ui-rounded,system-ui,sans-serif';
+    c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.lineWidth = 3 * L.k; c.strokeStyle = '#fff'; c.strokeText(String(n), X(q.x), Y(q.y) + 0.5);
+    c.fillStyle = '#16a34a'; c.fillText(String(n), X(q.x), Y(q.y) + 0.5);
   }
   c.restore();
 }
@@ -671,8 +757,31 @@ function up(){
   unlock();
   if(STEP && STEP.up) STEP.up();
 }
+/* A line whose lifting never arrived (12 Oct: "it stucks" — no new line,
+   no ↩️): when the last finger leaves the glass the open line has ended,
+   and no finger is resting any more. Never while a finger is still down:
+   she may hold still at a corner, a palm beside her.                   */
+function endStuckLine(){
+  if(IN.id === null) return;
+  IN.id = null;
+  up();
+}
+function glassEmpty(){ CAND = {}; endStuckLine(); }
+/* how many fingers are on the glass, from the touch events themselves */
+IN.onGlass = 0; IN.downs = 0;
+function glassCount(e){
+  IN.onGlass = e.touches ? e.touches.length : 0;
+  if(e.type !== 'touchend' && e.type !== 'touchcancel' || IN.onGlass) return;
+  var at = IN.downs;
+  setTimeout(function(){ if(IN.downs === at && !IN.onGlass) glassEmpty(); }, 0);
+}
+['touchstart', 'touchend', 'touchcancel'].forEach(function(t){ document.addEventListener(t, glassCount, true); });
+/* ↩️ / 🧽: a line still open while only the tapping finger is on the glass
+   has lost its lifting; with another finger down she may be drawing it  */
+function endIfNoOtherFinger(){ if(IN.onGlass <= 1) endStuckLine(); }
 function fingerDown(id, x, y, wide){
   layoutIfMoved();
+  IN.downs++;
   var others = Object.keys(CAND).length > 0 || IN.id !== null;
   Object.keys(CAND).forEach(function(k){ CAND[k].crowd = true; });
   CAND[id] = { pts:[{ x:x, y:y }], t0:performance.now(), crowd:others, wide:!!wide };
@@ -709,8 +818,9 @@ pad.addEventListener('pointerdown', function(e){
   IN.lastDown = Date.now();
   try{ pad.setPointerCapture(e.pointerId); }catch(err){}
   e.preventDefault();
-  /* a pen or a mouse never rests on the glass */
-  if(e.pointerType !== 'touch'){ if(IN.id !== null) return; IN.id = e.pointerId; down(e.clientX, e.clientY); return; }
+  /* a pen or a mouse never rests on the glass, and is never down twice:
+     a line still open from one has lost its lifting                     */
+  if(e.pointerType !== 'touch'){ IN.downs++; if(IN.id !== null) endStuckLine(); IN.id = e.pointerId; down(e.clientX, e.clientY); return; }
   fingerDown(e.pointerId, e.clientX, e.clientY, Math.max(e.width || 0, e.height || 0) > PALM_PX);
 });
 pad.addEventListener('pointermove', function(e){
@@ -885,6 +995,9 @@ function startStep(){
   /* show before doing: the guide draws it first, unless she already
      writes it from memory (then 👀 is there if she wants it)            */
   var lv = M[id] ? M[id].lv : 0;
+  /* chosen in her book: its name was said there, when the card opened (12 Oct) */
+  var named = RUN.item.namedAt && Date.now() - RUN.item.namedAt < 15000;
+  RUN.item.namedAt = 0;
   if(!RUN.item.again && !RUN.fallback && (st === 'R' || (st === 'T' && first) || (st === 'C' && first && lv <= 2))){
     /* name it, let the voice finish, then draw it: the first stroke's word
        ("w dół") used to cut the sentence off, so a new letter was never
@@ -895,20 +1008,23 @@ function startStep(){
        that a touch meanwhile is answered ("Najpierw popatrz!")          */
     var me = STEP;
     me.intro = true; me.watch = true; me.told = false;
-    var intro = G[id].kind === 'shape' ? prompt(id, st)
-              : (first ? letterPhrase(id) + '. ' : '') + tx().watch;
+    var intro = G[id].kind === 'shape' ? (named ? tx().watch : prompt(id, st))
+              : (first && !named ? letterPhrase(id) + '. ' : '') + tx().watch;
     say(intro);
     whenQuiet(function(){
       if(STEP !== me || !me.intro) return;
       demo(id, st === 'C' ? 'model' : 'pad', function(){
         if(STEP !== me) return;
         me.intro = false; me.watch = false; me.ready = true;
-        say(st === 'R' ? tx().turn : st === 'T' ? tx().dots : tx().copy);
+        /* "Teraz bez kropek!" said nothing she needed (his words, 12 Oct) */
+        say(st === 'T' ? tx().dots : tx().turn);
       });
     }, 250);
   } else {
     STEP.ready = true;
-    say(st === 'M' ? prompt(id, 'M') : st === 'C' ? tx().copy : st === 'T' ? tx().dots : tx().turn);
+    if(st === 'C') say(first ? (named ? tx().turn : prompt(id, st)) : tx().turn);
+    else if(st === 'M') say(named ? tx().memNamed : prompt(id, 'M'));
+    else say(st === 'T' ? tx().dots : tx().turn);
   }
 }
 
@@ -974,7 +1090,7 @@ function traceStep(id, st){
     lines(c);
     if(st === 'R') road(c, g); else dotted(c, g);
     clear('dot');
-    if(me.i < tr.length) startDot(cx.dot, tr[me.i].s, me.i + 1, 1, tr[me.i].idx);
+    if(me.i < tr.length) startDot(cx.dot, tr[me.i].s, me.i + 1, 1, tr[me.i].idx, { g:g });
   }
   me.dotAt = function(){ var t = tr[me.i]; return t ? t.s.pts[t.idx] : null; };
   function paintInk(){
@@ -1008,13 +1124,14 @@ function traceStep(id, st){
     /* what ↩️ goes back to */
     me.hist.push({ i:me.i, wrong:me.wrong, t:{ idx:t.idx, done:t.done, s:t.s, bidir:t.bidir, off:t.off, lifts:t.lifts } });
     var why = t.begin(p);
+    if(!t.said) t.said = cornerWords(g, me.i).filter(function(c){ return c.at > t.idx; });
     me.cur = [p]; me.raw.push(me.cur);
     if(why === 'ok'){
       if(t.done){ strokeDone(); return; }
       humStart(); humSet(t.progress());
     } else {
       me.wrong++;
-      if(me.wrong % 2 === 1){ say(t.idx > 0 ? tx().resume : tx().start); pulseStart(t.s, me.i + 1, t.idx); }
+      if(me.wrong % 2 === 1){ say(t.idx > 0 ? tx().resume : tx().start); pulseStart(t.s, me.i + 1, t.idx, g); }
     }
     paintInk(); poke();
   };
@@ -1024,6 +1141,8 @@ function traceStep(id, st){
     var t = tr[me.i];
     if(t && t.down){
       t.move(p); humSet(t.progress());
+      if(!t.said) t.said = cornerWords(g, me.i).filter(function(c){ return c.at > t.idx; });
+      while(t.said.length && t.idx >= t.said[0].at){ var cw = t.said.shift(); say(tx().cue[cw.cue]); }
       if(t.done){ me.cur = null; strokeDone(); return; }
     }
     if(st === 'T') inkStroke(cx.ink, me.cur.slice(-2), INK, 8);
@@ -1062,8 +1181,8 @@ function traceStep(id, st){
       say(pick(tx().praise));
       nextStep();
     } else if(G[RUN.item.g].strokes.length > 1){
-      var c = G[RUN.item.g].cue[me.i];
-      if(c && tx().cue[c]) setTimeout(function(){ if(STEP === me) say(tx().cue[c]); }, 250);
+      var w = cueWord(G[RUN.item.g], me.i);
+      if(w) setTimeout(function(){ if(STEP === me) say(w); }, 250);
     }
   }
   /* the sponge: her ink goes, and the letter starts again from line 1 */
@@ -1084,7 +1203,7 @@ function traceStep(id, st){
     if(h){
       var t = tr[h.i];
       t.idx = h.t.idx; t.done = h.t.done; t.s = h.t.s; t.bidir = h.t.bidir; t.off = h.t.off; t.lifts = h.t.lifts;
-      t.down = false; t.last = null;
+      t.down = false; t.last = null; t.said = null;
       for(var k = h.i + 1; k < tr.length; k++) tr[k] = tracer(g.strokes[k], k);
       me.i = h.i; me.wrong = h.wrong;
     }
@@ -1104,10 +1223,15 @@ function freeStep(id, st, opt){
   function paintGuide(){
     clear('guide'); clear('dot'); lines(cx.guide);
     /* after a first miss: the letter in dots under her next try (his call
-       2b, 10 Oct), each line with its numbered green start and arrow     */
+       2b, 10 Oct), each line with its green start, its arrow and its
+       number by the arrow (12 Oct)                                       */
     if(me.overlay === 'dots'){
       dotted(cx.guide, g);
-      g.strokes.forEach(function(s, i){ if(!s.dot) startDot(cx.dot, s, i + 1); });
+      /* every dot and arrow first, then the numbers: none hides another */
+      var starts = g.strokes.map(function(s, i){ return { s:s, n:i + 1 }; }).filter(function(o){ return !o.s.dot; });
+      me.badges = starts.map(function(o){ var q = numberSpot(o.s, 0, g); q.n = o.n; return q; });
+      starts.forEach(function(o){ startDot(cx.dot, o.s, o.n, 1, 0, { only:'arrow', g:g }); });
+      starts.forEach(function(o){ startDot(cx.dot, o.s, o.n, 1, 0, { only:'number', g:g }); });
       return;
     }
     if(me.overlay){
@@ -1173,9 +1297,24 @@ function freeStep(id, st, opt){
                                un:me.undos || undefined });
     RUN.sample = P.unpack(packed);
     if(opt.onDone){ opt.onDone(true, packed); return; }
-    var wrongStart = r.errors.indexOf('start') >= 0, wrongWay = r.errors.indexOf('dir') >= 0;
+    var wrongStart = r.errors.indexOf('start') >= 0, wrongWay = r.errors.indexOf('dir') >= 0,
+        wrongOrder = r.errors.indexOf('order') >= 0;
+    /* in the wrong order: which line came out of turn. Her lines in the
+       order she drew them, as lines of the letter; the first place where
+       that is not 1, 2, 3… is the line to show — line 1 itself ("od której
+       kreski zaczynamy") or a later one ("która kreska jest następna") */
+    var outOfTurn = 0;
+    if(wrongOrder && r.assign){
+      var drawn = r.assign.map(function(j, ti){ return { ti:ti, j:j }; })
+        .filter(function(o){ return o.j >= 0 && !g.strokes[o.ti].dot && g.mark.indexOf(o.ti) < 0; })
+        .sort(function(a, b){ return a.j - b.j || a.ti - b.ti; });
+      for(var q = 0; q < drawn.length; q++){
+        var want = drawn.map(function(o){ return o.ti; }).sort(function(a, b){ return a - b; })[q];
+        if(drawn[q].ti !== want){ outOfTurn = want; break; }
+      }
+    }
     tone([660, 880]);
-    if(!wrongStart && !wrongWay){
+    if(!wrongStart && !wrongWay && !wrongOrder){
       say(Math.random() < 0.6 ? pick([tx().fromTop, tx().rightWay]) + ' ' + pick(tx().praise) : pick(tx().praise));
       nextStep();
       return;
@@ -1183,12 +1322,17 @@ function freeStep(id, st, opt){
     /* right, but begun in the wrong place or drawn the wrong way: it
        counts, and the line in question is drawn again the right way
        (his call 1a, 10 Oct — show, never reject; Berninger 1997)       */
-    var i = wrongStart ? 0 : Math.max(0, (r.dir || []).indexOf(false));
-    say(pick(tx().praise) + ' ' + (wrongStart ? tx().seeStart : tx().seeWay));
+    /* in the wrong order (12 Oct, her K): the line that came out of turn */
+    var i = wrongStart ? 0 : wrongOrder ? outOfTurn : Math.max(0, (r.dir || []).indexOf(false));
+    /* the praise first, on its own; then "Zobacz…" with the line drawn
+       (12 Oct: "it starts to say patrz but accepts at almost the same
+       time" — both were one sentence)                                    */
+    say(pick(tx().praise));
     var where = $('model').classList.contains('on') ? 'model' : 'pad';
     me.watch = true; me.told = true;                 /* no figure tap or 👀 can cut it short */
     whenQuiet(function(){
       if(STEP !== me) return;
+      say(wrongStart ? tx().seeStart : wrongOrder ? (i === 0 ? tx().seeOrder : tx().seeNext) : tx().seeWay);
       demoStroke(g, i, where, function(){
         if(STEP !== me) return;
         if(where === 'model') paintModel(g); else setTimeout(function(){ clear('fx'); }, 400);
@@ -1286,6 +1430,44 @@ var DEMO = 0, DEMO_ON = null;
 function cancelDemo(){ DEMO++; DEMO_ON = null; FX = null; clear('fx'); }
 /* she may write while the guide draws (7 Oct): it then goes on without
    its words (DEMO_ON.quiet), and stops when her step is done           */
+/* the word for line i: a mark is "i kropka"; any other line its own word */
+function cueWord(g, i){
+  var c = g.cue[i];
+  if(g.mark.indexOf(i) >= 0 && tx().cueMark[c]) return tx().cueMark[c];
+  return c ? tx().cue[c] : '';
+}
+/* A straight line with corners gets a word at each corner where its way
+   changes (12 Oct: the Y's second line went down without "w dół"): Y "na
+   skos … w dół", L "w dół … w prawo", N "na skos … w górę", Z "w prawo …
+   na skos … w prawo". Only for lines named by a way (down, across, slant);
+   a zigzag or a mountain keeps its one word.                            */
+var CORNERS = {};
+function cornerWords(g, i){
+  var key = g.id + '|' + i;
+  if(CORNERS[key]) return CORNERS[key];
+  var out = [], st = g.strokes[i], src = (g.src[i] || '').trim(), c0 = g.cue[i];
+  if(!st.dot && /^[das]$/.test(c0 || '') && /^M [-\d. ]+( L [-\d. ]+){2,}$/.test(src)){
+    var n = src.replace(/[ML]/g, ' ').trim().split(/\s+/).map(Number), v = [];
+    for(var q = 0; q + 1 < n.length; q += 2) v.push({ x:n[q], y:n[q + 1] });
+    var way = function(a, b){
+      var dx = b.x - a.x, dy = b.y - a.y;
+      /* within ~8° of upright or level; W's steep legs stay "na skos" */
+      if(Math.abs(dx) < 0.15 * Math.abs(dy)) return dy > 0 ? 'd' : 'g';
+      if(Math.abs(dy) < 0.15 * Math.abs(dx)) return dx > 0 ? 'a' : '';
+      return 's';
+    };
+    var last = c0;
+    for(var k = 1; k + 1 < v.length; k++){
+      var w = way(v[k], v[k + 1]);
+      if(!w || w === last) { last = w || last; continue; }
+      var at = 0, bd = Infinity;
+      st.pts.forEach(function(p, m){ var d = (p.x - v[k].x) * (p.x - v[k].x) + (p.y - v[k].y) * (p.y - v[k].y); if(d < bd){ bd = d; at = m; } });
+      out.push({ at:at, cue:w });
+      last = w;
+    }
+  }
+  return (CORNERS[key] = out);
+}
 function demo(id, where, done, quiet){
   var g = G[id], i = 0, ticket = ++DEMO;
   DEMO_ON = { t0:performance.now(), where:where, done:done, quiet:!!quiet };
@@ -1298,9 +1480,10 @@ function demo(id, where, done, quiet){
 }
 function demoStroke(g, i, where, done, keep){
   var st = g.strokes[i], speed = 0.095;       /* units per millisecond */
-  var cue = g.cue[i];
   var quiet = DEMO_ON && DEMO_ON.quiet;
-  if(!quiet && (g.strokes.length > 1 || g.kind !== 'shape')) if(cue && tx().cue[cue]) say(tx().cue[cue], S.rate);
+  var word = (g.strokes.length > 1 || g.kind !== 'shape') ? cueWord(g, i) : '';
+  if(!quiet && word) say(word, S.rate);
+  var corners = cornerWords(g, i).slice();
   var t0 = performance.now(), dur = st.dot ? 300 : Math.max(450, st.len / speed);
   var anim = { alive:true };
   FX = anim;
@@ -1310,10 +1493,11 @@ function demoStroke(g, i, where, done, keep){
     /* a frame's timestamp is when the frame began, which can be before t0:
        unclamped, the first frame indexed pts[-1] and the demo died there */
     var f = Math.max(0, Math.min(1, (now - t0) / dur)), n = Math.round(f * (st.pts.length - 1));
+    while(corners.length && n >= corners[0].at){ var cw = corners.shift(); if(!(DEMO_ON && DEMO_ON.quiet)) say(tx().cue[cw.cue], S.rate); }
     if(where === 'pad'){
       if(keep) redrawDemoTrail(g, i - 1); else clear('fx');
       var c = cx.fx;
-      startDot(c, st, i + 1);
+      startDot(c, st, i + 1, 1, 0, { g:g });
       c.save(); c.lineCap = 'round'; c.lineJoin = 'round'; c.strokeStyle = 'rgba(22,163,74,.85)'; c.lineWidth = 9 * L.k;
       if(st.dot){ c.fillStyle = c.strokeStyle; c.beginPath(); c.arc(X(st.pts[0].x), Y(st.pts[0].y), 6 * L.k, 0, 7); c.fill(); }
       else { polyline(c, st.pts, n); c.stroke(); }
@@ -1342,13 +1526,13 @@ function redrawDemoTrail(g, upto){
   }
   c.restore();
 }
-function pulseStart(st, n, from){
+function pulseStart(st, n, from, g){
   var t0 = performance.now(), anim = { alive:true }; FX = anim;
   (function frame(now){
     if(FX !== anim) return;
     var f = Math.max(0, (now - t0) / 900);
     clear('fx');
-    if(f < 1){ startDot(cx.fx, st, n, 1 + 0.5 * Math.sin(f * Math.PI * 3), from); requestAnimationFrame(frame); }
+    if(f < 1){ startDot(cx.fx, st, n, 1 + 0.5 * Math.sin(f * Math.PI * 3), from, { g:g }); requestAnimationFrame(frame); }
   })(t0);
 }
 
@@ -1405,8 +1589,9 @@ $('watch').addEventListener('click', function(){
   me.ready = false; me.watch = true; me.told = false;
   demo(id, 'pad', function(){ if(STEP !== me) return; me.watch = false; me.ready = true; if(me.relayout) me.relayout(); });
 });
-$('clear').addEventListener('click', function(){ unlock(); if(STEP && STEP.clearInk) STEP.clearInk(); });
-$('undo').addEventListener('click', function(){ unlock(); if(STEP && STEP.undo) STEP.undo(); });
+/* her finger is on the button, not the pad: any line still open has ended */
+$('clear').addEventListener('click', function(){ unlock(); endIfNoOtherFinger(); if(STEP && STEP.clearInk) STEP.clearInk(); });
+$('undo').addEventListener('click', function(){ unlock(); endIfNoOtherFinger(); if(STEP && STEP.undo) STEP.undo(); });
 /* the figure above the pad writes itself again at every tap (his ask,
    9 Oct), quietly — the pad stays hers meanwhile                        */
 $('model').addEventListener('click', function(){
@@ -1505,7 +1690,9 @@ function openDetail(id, smp){
   $('detailwrite').dataset.id = id;
   $('detail').classList.add('on');
   say(letterPhrase(id), null, true);
+  DETAIL_SAID = { id:id, at:Date.now() };
 }
+var DETAIL_SAID = { id:null, at:0 };
 $('detail').addEventListener('click', function(){ $('detail').classList.remove('on'); });
 $('detailwrite').addEventListener('click', function(e){
   e.stopPropagation(); unlock();
@@ -1515,10 +1702,12 @@ $('detailwrite').addEventListener('click', function(e){
 /* in a sitting: her letter joins it (or is taken from it, if it is still
    to come); after one: the next sitting, her letter first               */
 function writeChosen(id){
-  var it = { g:id, why:'chosen', steps:P.plan(M[id], { shape:G[id].kind === 'shape' }) };
+  var said = DETAIL_SAID.id === id ? DETAIL_SAID.at : 0;
+  var it = { g:id, why:'chosen', steps:P.plan(M[id], { shape:G[id].kind === 'shape' }), namedAt:said };
   if(bookFrom === 'path' && SES && Object.keys(SES.done).length < SES.items.length){
     var at = SES.items.findIndex(function(x, i){ return x.g === id && !x.name && !SES.done[i]; });
     if(at < 0){ SES.items.push(it); at = SES.items.length - 1; }
+    else SES.items[at].namedAt = said;
     runItem(at);
     return;
   }
@@ -1620,6 +1809,34 @@ Array.prototype.forEach.call(document.querySelectorAll('.flag'), function(f){
     startSession();
   });
 });
+
+/* A tap on a button counts when the finger lifts (12 Oct: "it shows the
+   press but nothing happens" on her name's button) — iPadOS drops the
+   click when the finger moves a little, or when the pressed button sinks
+   from under it. On her screens a touch's own click then counts no more
+   (it would land on whatever the tap just opened); a mouse clicks as ever.
+   The parent screens and her book scroll: they keep the plain click.    */
+var TAP = { el:null, x:0, y:0, t:0, id:null, at:0 };
+function tapTarget(e){
+  var b = e.target && e.target.closest ? e.target.closest('button, #model') : null;
+  return b && !b.disabled && b.id !== 'gear' ? b : null;
+}
+function tapScreen(){ var on = current(); return on !== 'parent' && on !== 'stats' && on !== 'book' && on !== 'setup'; }
+document.addEventListener('pointerdown', function(e){
+  TAP.el = e.pointerType === 'mouse' || !tapScreen() ? null : tapTarget(e);
+  if(TAP.el){ TAP.x = e.clientX; TAP.y = e.clientY; TAP.t = Date.now(); TAP.id = e.pointerId; }
+}, true);
+document.addEventListener('pointerup', function(e){
+  var b = TAP.el; TAP.el = null;
+  if(!b || e.pointerId !== TAP.id || !tapScreen()) return;
+  if(Math.hypot(e.clientX - TAP.x, e.clientY - TAP.y) > 30 || Date.now() - TAP.t > 1500) return;
+  TAP.at = Date.now();
+  b.click();
+}, true);
+document.addEventListener('pointercancel', function(){ TAP.el = null; }, true);
+document.addEventListener('click', function(e){
+  if(e.isTrusted && Date.now() - TAP.at < 700){ e.stopImmediatePropagation(); e.preventDefault(); }
+}, true);
 
 /* ============ the parent's side ===================================== */
 /* ⚙️: held 1.2 s, the parent panel; two quick taps, his 🐞 bug mark.

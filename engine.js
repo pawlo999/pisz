@@ -433,9 +433,13 @@ var FIT_FX = [0.68, 0.8, 0.9, 1, 1.12, 1.26, 1.45];
    30, about 3). merge: line ends of the letter closer than this are one
    place — 32, so a 4 whose stem starts at the top beside the slant (31
    apart on the model) is finished. join: hers closer than this are one
-   place. A corner turns more than `turn` (57°) over `arc` units either
+   place — 16, not 10: her V of 12 Oct, small and stretched to the model's
+   height, had its two bottom ends 13 apart, and passed as a Y (14–18 catch
+   it and change nothing else of hers; at 22 her own A and T fail; on the
+   synthetic letters, strict + heavy wobble 215 → 214 of 276, one T).
+   A corner turns more than `turn` (57°) over `arc` units either
    side.                                                                  */
-P.TUNE = { cos:0.6, reach:30, merge:32, join:10, arc:12, turn:1.0 };
+P.TUNE = { cos:0.6, reach:30, merge:32, join:16, arc:12, turn:1.0 };
 
 function tangents(pts, k){
   return pts.map(function(p, i){
@@ -785,6 +789,7 @@ P.judge = function(strokes, id, strictness, fast){
   if(fo.dir.some(function(d){ return !d; })) res.errors.push('dir');
   if(!fo.order) res.errors.push('order');
   res.dir = fo.dir;
+  res.assign = fo.assign;
 
   res.fit = { sx:f.sx, sy:f.sy, dx:f.dx, dy:f.dy, ref:{ cx:f.ref.cx, cy:f.ref.cy }, ub:{ cx:f.ub.cx, cy:f.ub.cy } };
   if(!shapeOk && res.errors.indexOf('mark') < 0 && res.errors.indexOf('mirror') < 0) res.errors.push('shape');

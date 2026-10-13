@@ -645,6 +645,30 @@ async function suite(engine) {
     await page.context().close();
   }
 
+  console.log('\n13 Oct: what the voice says — no "kropka" read aloud, "teraz po kropkach!", S "wężykiem"');
+  {
+    const { page, errors, said } = await open(b, { seed: { name: 'ADA', lang: 'pl' }, log: seedLog([...SHAPES2, ['~', 2], ['S', 1]]) });
+    await enter(page);
+    // 1a: a recorded letter, then ". Patrz!": the voice gets "Patrz!", never a piece that starts with a stop
+    const before = (await said()).length;
+    await page.evaluate(() => window.__pisz.say('\u2063K\u2063. Patrz!'));
+    await sleep(2500);
+    const s1 = (await said()).slice(before);
+    ok(s1.some(x => /^patrz!$/i.test(x)) && !s1.some(x => /^[\s.,;:!?\u2026\u2013\u2014-]/.test(x)), 'after a recorded letter: "patrz!" — no piece starting with a full stop (read as "kropka")', JSON.stringify(s1));
+    // and a sentence said straight to the voice (no recording in it) is cleaned the same way
+    await page.evaluate(() => window.__pisz.say('. Patrz jeszcze!'));
+    await sleep(1500);
+    ok((await said()).includes('patrz jeszcze!') && !(await said()).some(x => /^[.]/.test(x)), 'a sentence starting with a stop goes to the voice without it on every path');
+    // 2a + 3a: the dots step for S: "wężykiem", then "teraz po kropkach!"
+    await sitting(page, [{ g: 'S', steps: ['T'] }]);
+    await ready(page, 'T');
+    const s2 = (await said()).slice(before);
+    ok(s2.includes('wężykiem') && !s2.includes('dookoła'), 'the guide draws the S "wężykiem", not "dookoła"', JSON.stringify(s2));
+    ok(s2.includes('teraz po kropkach!'), 'and opens the dots with "teraz po kropkach!"', JSON.stringify(s2.slice(-3)));
+    ok(!errors.length, 'no errors', errors.join(' | '));
+    await page.context().close();
+  }
+
   console.log('\n13 Oct: too small to see — "narysuj większą!", not a miss (his 1a)');
   {
     // six dabs for an S (her S of 12 Oct 17:34): not a miss, no dots — "narysuj większą!", then her real S counts

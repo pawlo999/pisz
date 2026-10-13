@@ -390,6 +390,22 @@ in test mode. What he reported, what it was, what changed:
     która kreska jest następna.". The same split for wrong start and way:
     praise, then "Zobacz…".
 
+## 7i · 13 Oct: three words he heard (b14)
+
+From his 🐞 marks in a test run (07:23–07:27 UTC):
+- **"KROPKA patrz"** — not Ż's dot after all: a letter with his recording
+  is introduced as [the recorded sound] ". Patrz!", and the iPad voice read
+  the leading full stop aloud — "kropka, patrz" on every recorded letter
+  since 7 Oct. No piece the voice speaks starts with a stop, comma or dash
+  any more (his 1a).
+- **"Po kropkach!"** → "Teraz po kropkach!" (2a).
+- **S** was drawn "dookoła"; now "wężykiem" (Ś with it), and the arch shape ∩
+  "łukiem" — said only if it ever has more than one line (3a). Everything
+  else keeps "dookoła": the circles, C, G, and the digits 0, 2, 3, 6, 8, 9
+  (off for her; worth a look if digits are switched on).
+- His calls on my questions: the road and the dots keep teaching one way
+  (6a); the waits before a try is judged stay (7a).
+
 ## 8 · Next
 
 | | Slice | State |
@@ -408,7 +424,7 @@ in test mode. What he reported, what it was, what changed:
     node test/engine.test.mjs                 # 92 checks, ~2 min
     node test/worker.test.mjs                 # 25 checks
     node test/tools.test.mjs                  # tools/her-log.py: guard, arguments, what --marks prints; 14 checks (13 without litery beside it), no network
-    bash test/e2e-both.sh                     # WebKit and Chromium at once, 444 checks, ~15 min
+    bash test/e2e-both.sh                     # WebKit and Chromium at once, 454 checks, ~15 min
     PISZ_URL=http://localhost:8791/ node test/e2e.test.mjs   # the same one engine after the other, ~25 min
     PISZ_URL=http://localhost:8791/ node test/sounds.test.mjs  # recording + playback, Chromium, 49 checks
 

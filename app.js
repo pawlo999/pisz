@@ -3,7 +3,7 @@
 (function () {
 'use strict';
 
-var BUILD = 13;
+var BUILD = 14;
 /* The sync service. The URL is public; the key the parent pastes in is the
    only credential, because there is no login for a four-year-old.        */
 var SYNC_URL = 'https://pisz-sync.pawlo999.workers.dev';
@@ -65,7 +65,7 @@ var SHAPE = {
 };
 var LINK = { pl:' jak ', nb:' som i ' };
 var T_ = {
-  pl:{ hi:'Cześć %s!', path:'Dzisiaj piszemy', watch:'Patrz!', turn:'Teraz ty!', dots:'Po kropkach!',
+  pl:{ hi:'Cześć %s!', path:'Dzisiaj piszemy', watch:'Patrz!', turn:'Teraz ty!', dots:'Teraz po kropkach!',
        mem:'Napisz %w', memGap:'Napisz literkę, której brakuje: %w',
        shape:'Narysuj %w', start:'Zacznij od zielonej kropki.', resume:'Rysuj dalej od zielonej kropki.', again:'Spróbujmy jeszcze raz.',
        look:'Popatrz jeszcze raz.', name:'Napisz swoje imię!', nameDone:'To twoje imię!',
@@ -82,7 +82,8 @@ var T_ = {
        paper:'A teraz napisz jedną literkę kredką na kartce i pokaż mamie albo tacie!',
        book:'Moje literki',
        cue:{ d:'w dół', a:'w prawo', s:'na skos', r:'dookoła', b:'brzuszek', u:'w górę i w dół',
-             w:'fala', z:'zygzak', q:'kwadrat', k:'kreska', o:'ogonek', p:'kropka', g:'w górę' },
+             w:'fala', z:'zygzak', q:'kwadrat', k:'kreska', o:'ogonek', p:'kropka', g:'w górę',
+             v:'wężykiem', h:'łukiem' },
        /* a mark is the last thing drawn: "i kropka", never "kropka" alone (12 Oct) */
        cueMark:{ k:'i kreska', p:'i kropka', o:'i ogonek', r:'i kółeczko' } },
   nb:{ hi:'Hei %s!', path:'I dag skriver vi', watch:'Se her!', turn:'Nå er det din tur!', dots:'Følg prikkene!',
@@ -102,7 +103,8 @@ var T_ = {
        paper:'Skriv en av bokstavene med fargestift på et ark, og vis mamma eller pappa!',
        book:'Bokstavene mine',
        cue:{ d:'ned', a:'bortover', s:'på skrå', r:'rundt', b:'bue', u:'opp og ned',
-             w:'bølge', z:'sikksakk', q:'firkant', k:'strek', o:'hale', p:'prikk', g:'opp' },
+             w:'bølge', z:'sikksakk', q:'firkant', k:'strek', o:'hale', p:'prikk', g:'opp',
+             v:'som en slange', h:'i en bue' },
        cueMark:{ k:'og streken', p:'og prikken', o:'og halen', r:'og ringen' } }
 };
 var GUESTS = ['🦊','🐼','🐨','🦁','🐯','🐸','🐵','🦄','🐧','🐢','🦋','🐞','🐙','🦒','🐘','🦔','🐿️','🦩','🦜','🐬'];
@@ -264,8 +266,13 @@ if('speechSynthesis' in window){
 var VOX = { until:0, last:'', at:0, tapText:'', tapUntil:0, hushAt:0, live:[], trouble:0 };
 function speakMs(text, rate){ return 300 + String(text).length * 62 / (rate || S.rate || 0.7); }
 /* one sentence to the engine, which queues it behind the one playing */
+/* a piece the voice speaks never starts with a stop, a comma or a dash:
+   after a recorded letter the intro went on ". Patrz!", and the iPad voice
+   read the full stop aloud — "kropka, patrz" (13 Oct)                    */
+var LEAD = /^\s*[.,;:!?\u2026\u2013\u2014-][\s.,;:!?\u2026\u2013\u2014-]*/;   /* punctuation (and the spaces round it) only: " jak sowa" keeps its space */
 function utter(text, rate, counted){
-  if(!('speechSynthesis' in window) || !text) return;
+  text = String(text || '').replace(LEAD, '');
+  if(!('speechSynthesis' in window) || !text.trim()) return;
   try{
     var now = Date.now();
     var u = new SpeechSynthesisUtterance(String(text).toLowerCase());
@@ -332,7 +339,10 @@ function partsOf(text, rate, tap){
   var now = Date.now(), out = [];
   String(text).split(MARK).forEach(function(p, i){
     if(i % 2){ out.push({ id:p, rate:rate, tap:tap }); VOX.until = Math.max(VOX.until, now) + CLIP_MS + speakMs(restOf(p), rate || S.rate); }
-    else if(p.trim()){ out.push({ text:p, rate:rate, tap:tap }); VOX.until = Math.max(VOX.until, now) + speakMs(p, rate || S.rate); }
+    else {
+      p = p.replace(LEAD, '');      /* timed as it will be spoken (see utter) */
+      if(p.trim()){ out.push({ text:p, rate:rate, tap:tap }); VOX.until = Math.max(VOX.until, now) + speakMs(p, rate || S.rate); }
+    }
   });
   return out;
 }

@@ -46,21 +46,32 @@ own data said the same: thirteen letters at once dropped her to 54% and
     level 5  owned       — from memory on two different days
 
 Two misses in a row from memory or when copying step it back one level.
-Starting in the wrong place or going the wrong way twice in the last
-three puts one trace over the dots in front of the next item — the only
-step that physically will not let her do it backwards. Mirrored letters
-never count as misses.
+From memory within 10 minutes of a road, dots or copy of the same letter
+counts as a copy, not a memory day (b15). The copy model shows every
+line's green start, arrow and number; there is no forced trace any more
+(b15, §7j). Mirrored letters never count as misses.
+
+Three misses in a row written alone (copy or memory, no help, not "once
+more") put a letter to rest for two weeks from the latest: still in her
+book, never in a sitting (b15).
 
 Shapes stop at copying; they never need memory work.
 
 ## 3 · A sitting
 
 1. a warm-up shape — the next one to learn, or the stalest
-2. letters in progress, least known first
-3. at most one new letter, her name's letters first
-4. reviews that are due
-5. her name, once every letter in it can be copied
-6. topped up with owned things she has not seen for longest
+2. the stretch, two items at most: of the letters in progress that neither
+   rest nor wait, only the first three in teaching order (her name's
+   letters, then the curriculum) are scheduled, the one seen longest ago
+   first; a new letter, at most one, only while fewer than three are
+   scheduled. An accented letter waits until its base is from memory
+   (level 4); Æ until A and E both are. The rest are "tried": in her book,
+   ✏️ writes them, no sitting brings them (b15)
+3. reviews that are due, then letters from memory seen longest ago
+4. topped up with shapes she has
+5. never ending on the stretch: something she can do comes after it
+6. her name, last, once every letter in it can be copied — without the
+   model once every letter of it was right alone on two days (b15)
 
 Shown as a row of bubbles; the suggested one breathes, any undone one can
 be tapped. The first ever sitting is │ ─ ○ and nothing else: success on
@@ -406,6 +417,52 @@ From his 🐞 marks in a test run (07:23–07:27 UTC):
 - His calls on my questions: the road and the dots keep teaching one way
   (6a); the waits before a try is judged stay (7a).
 
+## 7j · 12 Nov: her record, 7 Oct – 8 Nov, and b15 (his calls 1a, 2a, 3a)
+
+429 steps read on 12 Nov:
+- ✏️ in her book has no gate and no limit, so 20 Polish letters were at
+  level 1–3; every one counted as "in progress", so no sitting offered a
+  new letter and the weakest came first — Z, Ż, Ź every sitting (47 of 72
+  letter steps, 20 Oct – 6 Nov). Her unaided tries fell from 46 % right
+  to 20 %.
+- After a miss the retry is over the dots and succeeds (66 of 71); the
+  next sitting asks for the same unaided copy: Z 0 of 8 alone, Ż 0 of 7,
+  Ź 0 of 6.
+- With no demo just before, she starts strokes at the bottom. The forced
+  trace did not carry over: of 13 accepted writes straight after one, 8
+  still started wrong; one trace took 72 s. A memory write straight after
+  that trace counted as a memory day.
+- The copy model showed no start dot or arrows. Her name was always copied
+  beside the model; the paper prompt came only at the end of a finished
+  sitting, and 4 of her last 9 days had none.
+
+What changed (b15):
+1. **What a sitting is built from** (§3): letters rest, accents wait,
+   three scheduled in teaching order, two stretch items at most and never
+   last. ✏️ stays free. Her record through the new sittings (Polish): `\`,
+   two of her name's letters from memory, two level-4 letters, her name —
+   no Z, Ż, Ź, Ć, Ś or Ę; Z, Ż, Ź rest until 20 Nov; the Polish accents and
+   Ø Å Æ wait for their base letters. The parent report says "resting
+   until …" or "waits for … from memory" beside such a letter.
+2. **Where a letter starts**: the copy and name model carries each line's
+   green start, arrow and number (not on an accent, dot or ring, which may
+   go either way), also after the replay on tap. The forced trace is gone;
+   "Brawo! Zobacz, skąd zaczynamy." after the fact stays. From memory
+   within 10 minutes of seeing the letter is a copy — on her record two
+   letters lose their owned level, one to 4 and one to 3 (the spec had
+   expected one, to 4: both of the second one's memory days were primed).
+3. **Her name without the model**: once every letter of it was right
+   alone (an N row, no help) on two days. The strip still shows which
+   letter is next and the voice names it; the word above the pad has the
+   letter's gap, as from memory. A miss brings that letter's model back
+   for its retry; 👀 counts as help. Rows written without the model carry
+   `nm:1`. After her name: "A teraz napisz swoje imię kredką na kartce i
+   pokaż mamie albo tacie!" once a day; the end screen's paper prompt is
+   not said again that day.
+
+Not in b15: Litery (parked, his 4a), a listening bubble; the judge, the
+help ladder, ✏️, the daily limit and the speech rules are unchanged.
+
 ## 8 · Next
 
 | | Slice | State |
@@ -417,11 +474,16 @@ From his 🐞 marks in a test run (07:23–07:27 UTC):
 | P5 | lowercase as a stage (pair Aa first, as Vinter 2023 suggests) | |
 | P6 | short words after her name: MAMA, TATA, her friends' names | |
 | P7 | Litery ↔ Pisz: write the missing letter instead of tapping it | |
+| P8 | sittings from her record: rest, accents wait, three in progress, stretch never last | **done, b15** |
+| P9 | where a letter starts on the model; no forced trace; primed memory is a copy | **done, b15** |
+| P10 | her name without the model; to paper after her name once a day | **done, b15** |
 
 ## 9 · Tests
 
     python3 serve.py 8791                     # in one shell
-    node test/engine.test.mjs                 # 92 checks, ~2 min
+    node test/engine.test.mjs                 # 118 checks, ~2 min
+    PISZ_ONLY=b15 PISZ_URL=http://localhost:8791/ node test/e2e.test.mjs   # only the b15 checks, both engines, ~4 min
+    PISZ_URL=http://localhost:8791/ node test/shot-b15.mjs <dir>           # b15 screenshots: copy model with its starts, name without the model
     node test/worker.test.mjs                 # 25 checks
     node test/tools.test.mjs                  # tools/her-log.py: guard, arguments, what --marks prints; 14 checks (13 without litery beside it), no network
     bash test/e2e-both.sh                     # WebKit and Chromium at once, 454 checks, ~15 min

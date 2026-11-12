@@ -487,7 +487,7 @@ help ladder, ✏️, the daily limit and the speech rules are unchanged.
     PISZ_URL=http://localhost:8791/ node test/shot-b15.mjs <dir>           # b15 screenshots: copy model with its starts, name without the model
     node test/worker.test.mjs                 # 25 checks
     node test/tools.test.mjs                  # tools/her-log.py: guard, arguments, what --marks prints; 14 checks (13 without litery beside it), no network
-    bash test/e2e-both.sh                     # WebKit and Chromium at once, 454 checks, ~15 min
+    bash test/e2e-both.sh                     # WebKit and Chromium at once, 498 checks (247 + 251), ~15 min
     PISZ_URL=http://localhost:8791/ node test/e2e.test.mjs   # the same one engine after the other, ~25 min
     PISZ_URL=http://localhost:8791/ node test/sounds.test.mjs  # recording + playback, Chromium, 49 checks
 

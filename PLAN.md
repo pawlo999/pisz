@@ -452,8 +452,9 @@ What changed (b15):
    letters lose their owned level, one to 4 and one to 3 (the spec had
    expected one, to 4: both of the second one's memory days were primed).
 3. **Her name without the model**: once every letter of it was right
-   alone (an N row, no help) on two days. The strip still shows which
-   letter is next and the voice names it; the word above the pad has the
+   alone (an N row, no help) on two days. The strip still marks which
+   letter is next, as an empty cell — its outline there would be the
+   model (code review) — and the voice names it; the word above the pad has the
    letter's gap, as from memory. A miss brings that letter's model back
    for its retry; 👀 counts as help. Rows written without the model carry
    `nm:1`. After her name: "A teraz napisz swoje imię kredką na kartce i
@@ -481,7 +482,7 @@ help ladder, ✏️, the daily limit and the speech rules are unchanged.
 ## 9 · Tests
 
     python3 serve.py 8791                     # in one shell
-    node test/engine.test.mjs                 # 118 checks, ~2 min
+    node test/engine.test.mjs                 # 121 checks, ~2 min
     PISZ_ONLY=b15 PISZ_URL=http://localhost:8791/ node test/e2e.test.mjs   # only the b15 checks, both engines, ~4 min
     PISZ_URL=http://localhost:8791/ node test/shot-b15.mjs <dir>           # b15 screenshots: copy model with its starts, name without the model
     node test/worker.test.mjs                 # 25 checks

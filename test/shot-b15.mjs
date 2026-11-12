@@ -27,5 +27,5 @@ await page.evaluate(() => { const s = window.__pisz.SES; s.items = [{ g: 'ADA', 
 await until(page, () => { const a = window.__pisz; return a.STEP && a.STEP.ready; }, null, 20000, 'name ready');
 await sleep(400);
 await page.screenshot({ path: `${out}/b15-name-bare.png` });
-console.log(JSON.stringify({ bare: await page.evaluate(() => window.__pisz.RUN && window.__pisz.RUN.bare), modelOn: await page.evaluate(() => document.getElementById('model').classList.contains('on')), errors }));
+console.log(JSON.stringify({ bare: await page.evaluate(() => window.__pisz.STEP && window.__pisz.STEP.bare()), modelOn: await page.evaluate(() => document.getElementById('model').classList.contains('on')), errors }));
 await b.close();

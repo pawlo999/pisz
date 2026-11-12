@@ -930,7 +930,9 @@ P.rebuild = function(log){
        /* from memory straight after seeing it is not from memory (b15): an
           M within 10 minutes of a road, dots or copy of the same glyph
           counts as a copy, and is not a memory day                       */
-       var primed = r.st === 'M' && m.lastSeen && r.t - m.lastSeen < P.PRIMED;
+       /* (a success only: a primed miss steps back from memory as any
+          miss from memory does, one level)                               */
+       var primed = r.ok && r.st === 'M' && m.lastSeen && r.t - m.lastSeen < P.PRIMED;
        if(primed) gain = Math.min(gain, 3);
        if(r.st === 'R' || r.st === 'T' || r.st === 'C') m.lastSeen = r.t;
        /* her last three tries alone (copy or memory, no help, not once
@@ -1087,6 +1089,8 @@ P.session = function(M, opt){
   /* a new letter, at most one, only while fewer than three are scheduled */
   var fresh = [];
   if(scheduled.length < learnAtOnce){
+    /* level 0, rows or not: a letter tried in her book with nothing right
+       yet is new too (before b15 it was neither new nor learning)       */
     fresh = order.filter(function(id){ return lv(id) === 0 && ready(id, M) && !P.waits(M, id) && !rests(id); });
   }
   /* the stretch-slot for a new one is kept only if one can join: I is not
@@ -1095,7 +1099,7 @@ P.session = function(M, opt){
   for(var f = 0; f < fresh.length && !newOne; f++){
     if(!items.some(function(it){ return it.g === fresh[f] || twins(it.g, fresh[f]); })) newOne = fresh[f];
   }
-  var room = Math.min(stretchMax - (newOne ? 1 : 0), size - items.length);
+  var room = Math.min(stretchMax, size - items.length) - (newOne ? 1 : 0);
   scheduled.slice().sort(function(a, b){ return M[a].last - M[b].last; })
            .forEach(function(id){ if(room > 0 && add(id, 'learning', true)) room--; });
   if(newOne && items.length < size) add(newOne, name.indexOf(newOne) >= 0 ? 'name' : 'new', true);
@@ -1117,16 +1121,17 @@ P.session = function(M, opt){
 
   /* 5. never end on the stretch: something she can do comes after it —
      the last one that is not a stretch, else the warm-up                */
-  if(items.length > 1 && items[items.length - 1].stretch){
-    for(var k = items.length - 2; k >= 0; k--){
-      if(!items[k].stretch){ items.push(items.splice(k, 1)[0]); break; }
-    }
+  /* (her name, when it comes, is that: then nothing moves, and the
+     warm-up stays first unless nothing else can follow the stretch)    */
+  var withName = name.length >= 2 && name.length <= 8 && name.every(function(c){ return lv(c) >= 3; });
+  if(!withName && items.length > 1 && items[items.length - 1].stretch){
+    var k = items.length - 2;
+    while(k > 0 && items[k].stretch) k--;
+    if(!items[k].stretch) items.push(items.splice(k, 1)[0]);
   }
 
   /* 6. her name, last, once every letter in it can be copied */
-  if(name.length >= 2 && name.length <= 8 && name.every(function(c){ return lv(c) >= 3; })){
-    items.push({ g:name.join(''), why:'name', steps:['N'], name:true });
-  }
+  if(withName) items.push({ g:name.join(''), why:'name', steps:['N'], name:true });
   return items;
 };
 

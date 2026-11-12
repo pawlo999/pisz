@@ -386,6 +386,9 @@ section('b15: from memory straight after seeing it is a copy');
   ok(M.L.lv === 5, 'eleven minutes after the copy it counts: owned', M.L.lv);
   M = P.rebuild([{ t: T0, g: 'K', st: 'C', ok: 1 }, { t: T0 + 4 * min, g: 'K', st: 'M', ok: 1 }]);
   ok(M.K.lv === 3 && !Object.keys(M.K.memDays).length, 'primed: counts as a copy (level 3 at most)', JSON.stringify([M.K.lv, M.K.memDays]));
+  /* review: two misses from memory just after a copy step back one level, not two */
+  const four = seen.concat([at(DAY), at(3 * DAY, 'C'), { t: T0 + 3 * DAY + 2 * min, g: 'L', st: 'M', ok: 0, e: 'shape' }, { t: T0 + 3 * DAY + 3 * min, g: 'L', st: 'M', ok: 0, e: 'shape' }]);
+  ok(P.rebuild(four).L.lv === 3, 'two primed misses from memory: back to copying (3), not to the dots', P.rebuild(four).L.lv);
 }
 
 section('b15: a letter rests after three misses alone');
@@ -457,6 +460,14 @@ const isStretch = (M, i) => !i.name && P.G[i.g] && P.G[i.g].kind !== 'shape' && 
   const s3 = P.session(M, { lang: 'pl', now, size: 6 });
   ok(s3.some(i => i.why === 'new' || i.why === 'name'), 'with one scheduled (Ż waits), a new letter is offered', s3.map(i => i.g + ':' + i.why).join(' '));
   ok(s3.filter(i => isStretch(M, i)).length <= 2, 'still at most two stretch items with the new one');
+  /* review: the warm-up stays first when her name follows anyway */
+  M = build([['N', 3], ['A', 3], ['D', 3], ['I', 3]]);
+  const s5 = P.session(M, { lang: 'pl', name: 'NADIA', now, size: 3 });
+  ok(P.G[s5[0].g].kind === 'shape' && s5[s5.length - 1].name, 'a small sitting with her name: warm-up first, name last', s5.map(i => i.g).join(' '));
+  /* review: a small sitting keeps the place for the new letter */
+  M = build([['L', 3]]);
+  const s6 = P.session(M, { lang: 'pl', now, size: 2 });
+  ok(s6.some(i => i.why === 'new'), 'size 2, one in progress: the new letter still comes', s6.map(i => i.g + ':' + i.why).join(' '));
   /* her name stays last */
   M = build([['N', 3], ['A', 3], ['D', 3], ['I', 3], ['L', 4]]);
   const s4 = P.session(M, { lang: 'pl', name: 'NADIA', now, size: 5 });

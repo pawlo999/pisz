@@ -1603,7 +1603,6 @@ function startName(){
   var name = RUN.item.g, i = 0, parts = [];
   /* every letter of it right alone on two days: no model now (b15) */
   var bare = P.nameAlone(LOG, name);
-  RUN.bare = bare;
   RUN.parts = parts;
   var strip = $('namestrip'); strip.textContent = '';
   var cells = name.split('').map(function(ch){ var c = el('canvas'); strip.appendChild(c); return c; });
@@ -1611,6 +1610,9 @@ function startName(){
   function paintStrip(){
     cells.forEach(function(c, k){
       c.classList.toggle('cur', k === i);
+      /* without the model, a letter still to write is an empty cell (the
+         current one marked): its outline there would be the model      */
+      if(bare && !parts[k]){ var r = c.getBoundingClientRect(); c.width = r.width || 1; c.height = r.height || 1; return; }
       thumb(c, name[k], parts[k] ? P.unpack(parts[k]) : null, { color: parts[k] ? INK : 'rgba(80,60,120,.35)', width:9 });
     });
   }

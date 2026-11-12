@@ -120,6 +120,12 @@ async function b15(b) {
     await ready(page, 'N');
     ok(!(await modelOn(page)), 'every letter right on two days: the name is written without the model');
     ok(await page.evaluate(() => document.querySelectorAll('#namestrip canvas.cur').length === 1), 'the strip still shows which letter is next');
+    const inked = await page.evaluate(() => [...document.querySelectorAll('#namestrip canvas')].map(c => {
+      const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0;
+      for (let i = 3; i < d.length; i += 4) if (d[i] > 40) n++;
+      return n;
+    }));
+    ok(inked.every(n => n === 0), 'but not the letters themselves: nothing to copy from (review)', JSON.stringify(inked));
     // a miss on the first A: its model comes back for the retry
     await draw(page, [[{ x: 0, y: 50 }, { x: 30, y: 52 }, { x: 60, y: 50 }, { x: 90, y: 52 }]]);
     await until(page, () => document.getElementById('model').classList.contains('on'), null, 15000, 'model back').catch(() => {});

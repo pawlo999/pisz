@@ -939,7 +939,8 @@ async function suite(engine) {
     await draw(page, [[{ x: 80, y: 95 }, { x: 70, y: 95 }, { x: 60, y: 95 }]]);   // a line begun in the wrong place…
     await page.evaluate(() => document.getElementById('undo').click());           // …taken back
     await draw(page, E.slice(1));
-    await until(page, () => window.__pisz.current() !== 'write', null, 8000, 'E done');
+    /* the end of E takes ~8.0 s on master and b15 alike (measured 12 Nov): 12 s */
+    await until(page, () => window.__pisz.current() !== 'write', null, 12000, 'E done');
     const row = await page.evaluate(() => window.__pisz.LOG.filter(r => r.g === 'E' && r.st === 'T')[0]);
     ok(row && row.ok === 1 && row.un === 2 && row.w === 0 && !row.e, 'the E is finished; two ↩️ logged, and the wrong start she took back does not count', JSON.stringify(row && { un: row.un, w: row.w, e: row.e }));
     ok(!errors.length, 'no errors', errors.join(' | '));

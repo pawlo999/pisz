@@ -21,7 +21,8 @@ function rowsFor(g, lv, t0) {
   if (lv >= 1) out.push({ t: t++, l: 'pl', g, st: 'R', ok: 1 });
   if (lv >= 2) out.push({ t: t++, l: 'pl', g, st: 'T', ok: 1 });
   if (lv >= 3) out.push({ t: t++, l: 'pl', g, st: 'C', ok: 1 });
-  if (lv >= 4) out.push({ t: t++, l: 'pl', g, st: 'M', ok: 1 });
+  /* from memory 15 minutes after the copy: sooner is a copy since b15 */
+  if (lv >= 4) out.push({ t: t + 15 * 60000, l: 'pl', g, st: 'M', ok: 1 });
   if (lv >= 5) out.push({ t: t + DAY, l: 'pl', g, st: 'M', ok: 1 });
   return out;
 }

@@ -3,7 +3,7 @@
 (function () {
 'use strict';
 
-var BUILD = 14;
+var BUILD = 15;
 /* The sync service. The URL is public; the key the parent pastes in is the
    only credential, because there is no login for a four-year-old.        */
 var SYNC_URL = 'https://pisz-sync.pawlo999.workers.dev';
@@ -80,6 +80,7 @@ var T_ = {
        mirror:'Prawie! Ta literka patrzy w drugą stronę.',
        end:'Brawo %s!', endSub:'Pokaż mamie albo tacie!', night:'Na dzisiaj koniec. Do jutra!',
        paper:'A teraz napisz jedną literkę kredką na kartce i pokaż mamie albo tacie!',
+       paperName:'A teraz napisz swoje imię kredką na kartce i pokaż mamie albo tacie!',
        book:'Moje literki',
        cue:{ d:'w dół', a:'w prawo', s:'na skos', r:'dookoła', b:'brzuszek', u:'w górę i w dół',
              w:'fala', z:'zygzak', q:'kwadrat', k:'kreska', o:'ogonek', p:'kropka', g:'w górę',
@@ -101,6 +102,7 @@ var T_ = {
        mirror:'Nesten! Den bokstaven snur andre veien.',
        end:'Bra jobba %s!', endSub:'Vis mamma eller pappa!', night:'Det var alt for i dag. Vi ses i morgen!',
        paper:'Skriv en av bokstavene med fargestift på et ark, og vis mamma eller pappa!',
+       paperName:'Skriv navnet ditt med fargestift på et ark, og vis mamma eller pappa!',
        book:'Bokstavene mine',
        cue:{ d:'ned', a:'bortover', s:'på skrå', r:'rundt', b:'bue', u:'opp og ned',
              w:'bølge', z:'sikksakk', q:'firkant', k:'strek', o:'hale', p:'prikk', g:'opp',
@@ -146,7 +148,7 @@ function today(){ return P.dayKey(Date.now()); }
 function load(){
   try{
     var o = JSON.parse(localStorage.getItem(KEY) || '{}');
-    ['name','lang','rate','size','maxS','strict','digits','hum','left','syncKey','day','sessionsToday','sessionsAll']
+    ['name','lang','rate','size','maxS','strict','digits','hum','left','syncKey','day','sessionsToday','sessionsAll','paperDay']
       .forEach(function(k){ if(o[k] !== undefined) S[k] = o[k]; });
   }catch(e){}
   try{ LOG = JSON.parse(localStorage.getItem(LKEY) || '[]'); }catch(e){ LOG = []; }
@@ -158,7 +160,7 @@ function save(){
   try{
     localStorage.setItem(KEY, JSON.stringify({ name:S.name, lang:S.lang, rate:S.rate, size:S.size, maxS:S.maxS,
       strict:S.strict, digits:S.digits, hum:S.hum, left:S.left, syncKey:S.syncKey, day:S.day,
-      sessionsToday:S.sessionsToday, sessionsAll:S.sessionsAll }));
+      sessionsToday:S.sessionsToday, sessionsAll:S.sessionsAll, paperDay:S.paperDay }));
   }catch(e){ S.saveError = String(e && e.message || e); }
 }
 function saveLog(){
@@ -653,7 +655,10 @@ function startDot(c, st, n, pulse, from, opt){
   c.save();
   c.fillStyle = '#16a34a'; c.strokeStyle = '#16a34a'; c.lineCap = 'round'; c.lineJoin = 'round';
   if(opt.only !== 'number'){
-    c.beginPath(); c.arc(X(p.x), Y(p.y), 4.5 * L.k * k, 0, 7); c.fill();
+    /* on the model the line under it is as wide as the dot: a white ring
+       and a bigger dot keep it seen (b15)                                */
+    if(opt.ring){ c.save(); c.fillStyle = '#fff'; c.beginPath(); c.arc(X(p.x), Y(p.y), 8 * L.k * k, 0, 7); c.fill(); c.restore(); }
+    c.beginPath(); c.arc(X(p.x), Y(p.y), (opt.ring ? 6 : 4.5) * L.k * k, 0, 7); c.fill();
     var ar = arrowOf(st, from);
     if(ar){
       var ang = Math.atan2(ar.b.y - ar.a.y, ar.b.x - ar.a.x), hx = X(ar.b.x), hy = Y(ar.b.y), s = 5 * L.k;
@@ -1253,8 +1258,11 @@ function freeStep(id, st, opt){
     }
   }
   function paintInk(){ clear('ink'); me.strokes.forEach(function(s){ inkStroke(cx.ink, s, INK, 8); }); }
+  /* her name without the model (b15): hidden until a miss brings it back
+     for that letter's retry                                             */
+  me.bare = function(){ return !!opt.noModel && !me.modelBack; };
   me.relayout = function(){
-    var showModel = st === 'C' || st === 'N';
+    var showModel = (st === 'C' || st === 'N') && !me.bare();
     $('model').classList.toggle('on', showModel);
     sizeModel();
     layout(g); paintGuide(); paintInk();
@@ -1308,7 +1316,7 @@ function freeStep(id, st, opt){
     me.ready = false; clearTimeout(me.idleT);
     var packed = P.pack(me.strokes);
     var row = stepDone(true, { e:r.errors.join(','), sc:r.score, n:me.strokes.length, s:packed, h:me.helped ? 1 : 0,
-                               un:me.undos || undefined });
+                               un:me.undos || undefined, nm:me.bare() ? 1 : undefined });
     RUN.sample = P.unpack(packed);
     if(opt.onDone){ opt.onDone(true, packed); return; }
     var wrongStart = r.errors.indexOf('start') >= 0, wrongWay = r.errors.indexOf('dir') >= 0,
@@ -1380,7 +1388,7 @@ function freeStep(id, st, opt){
     me.tries++;
     stepDone(false, { e:(r && r.errors || []).join(','), sc:r ? r.score : 0, n:me.strokes.length,
                       s:P.pack(me.strokes), other:r && r.other || undefined, un:me.undos || undefined,
-                      h:me.helped ? 1 : undefined });
+                      h:me.helped ? 1 : undefined, nm:me.bare() ? 1 : undefined });
     var mirror = r && r.errors.indexOf('mirror') >= 0;
     if(me.tries >= 2 && opt.onDone){ opt.onDone(false, P.pack(me.strokes)); return; }
     if(me.tries >= 2 && RUN.item.again){
@@ -1401,7 +1409,11 @@ function freeStep(id, st, opt){
       return;
     }
     say(mirror ? tx().mirror : tx().look);
-    me.overlay = true; paintGuide();
+    me.overlay = true;
+    /* written without the model and missed: the model is back, for this
+       letter's retry only (b15)                                          */
+    if(me.bare()){ me.modelBack = true; paintWord(id, st); me.relayout(); }
+    else paintGuide();
     /* she watches it shown again first (his call, 10 Oct) */
     me.watch = true; me.told = false; me.reset = true; me.helped = true; me.markSaid = false; me.askedRest = false;
     whenQuiet(function(){
@@ -1453,7 +1465,24 @@ function paintModel(g, upto){
     pts.forEach(function(p, j){ j ? x.lineTo(ox + p.x * k, oy + p.y * k) : x.moveTo(ox + p.x * k, oy + p.y * k); });
     x.stroke();
   });
+  if(upto === undefined) modelMarks(g, x, k, ox, oy);
   return { x:x, k:k, ox:ox, oy:oy };
+}
+/* where every line starts, on the model too (b15): with no demo just
+   before, she began at the bottom, and the forced trace did not carry
+   over. The dots step's own green start, arrow and number, drawn on the
+   model's scale — every line but an accent, dot or ring (marks may be
+   drawn either way). Only on the whole model: the replay draws it bare,
+   and its last frame paints it whole again                              */
+function modelMarks(g, x, k, ox, oy){
+  var keep = { ox:L.ox, oy:L.oy, k:L.k };
+  L.ox = ox; L.oy = oy; L.k = k;
+  try{
+    var starts = g.strokes.map(function(s, i){ return { s:s, n:i + 1, i:i }; })
+                  .filter(function(o){ return !o.s.dot && g.mark.indexOf(o.i) < 0; });
+    starts.forEach(function(o){ startDot(x, o.s, o.n, 1, 0, { only:'arrow', g:g, ring:true }); });
+    starts.forEach(function(o){ startDot(x, o.s, o.n, 1, 0, { only:'number', g:g }); });
+  } finally { L.ox = keep.ox; L.oy = keep.oy; L.k = keep.k; }
 }
 
 /* ---- the guide draws it: every stroke, in order, with its word ----- */
@@ -1572,6 +1601,8 @@ function pulseStart(st, n, from, g){
 /* ---- her name ------------------------------------------------------- */
 function startName(){
   var name = RUN.item.g, i = 0, parts = [];
+  /* every letter of it right alone on two days: no model now (b15) */
+  var bare = P.nameAlone(LOG, name);
   RUN.parts = parts;
   var strip = $('namestrip'); strip.textContent = '';
   var cells = name.split('').map(function(ch){ var c = el('canvas'); strip.appendChild(c); return c; });
@@ -1579,6 +1610,9 @@ function startName(){
   function paintStrip(){
     cells.forEach(function(c, k){
       c.classList.toggle('cur', k === i);
+      /* without the model, a letter still to write is an empty cell (the
+         current one marked): its outline there would be the model      */
+      if(bare && !parts[k]){ var r = c.getBoundingClientRect(); c.width = r.width || 1; c.height = r.height || 1; return; }
       thumb(c, name[k], parts[k] ? P.unpack(parts[k]) : null, { color: parts[k] ? INK : 'rgba(80,60,120,.35)', width:9 });
     });
   }
@@ -1587,12 +1621,17 @@ function startName(){
       strip.textContent = '';
       RUN.sample = null;
       say(nm(tx().nameDone + ' %s!'));
+      /* her name to paper, once a day, sitting finished or not (b15: 4 of
+         her last 9 days had no finished sitting, and only the end said it) */
+      if(!S.practice && S.paperDay !== today()){ S.paperDay = today(); save(); say(tx().paperName); }
       setTimeout(function(){ if(RUN) itemDone(); }, 600);
       return;
     }
     var id = name[i];
-    paintWord(id, 'N');
-    STEP = freeStep(id, 'N', { onDone:function(ok, packed){
+    /* without the model the word above the pad would show the letter: it
+       has its gap, as from memory                                         */
+    paintWord(id, bare ? 'M' : 'N');
+    STEP = freeStep(id, 'N', { noModel:bare, onDone:function(ok, packed){
       parts[i] = packed; i++;
       tone([660, 880]);
       paintStrip();
@@ -1616,7 +1655,7 @@ $('watch').addEventListener('click', function(){
   /* only on a pad that is hers: never over a guide already showing, nor a
      step that is over                                                  */
   if(!STEP.ready || STEP.watch) return;
-  if(STEP.st === 'M') STEP.helped = true;
+  if(STEP.st === 'M' || STEP.bare && STEP.bare()) STEP.helped = true;
   /* she watches it, then carries on (10 Oct); nothing judged meanwhile */
   var me = STEP;
   clearTimeout(me.idleT); clearTimeout(me.judgeT);
@@ -1656,7 +1695,9 @@ function endSession(){
      letter in it ends by sending her to a crayon (transfer to paper is
      what the studies measure — Patchan & Puranik 2016)                  */
   var hadLetter = SES.items.some(function(it){ return it.name || G[it.g] && G[it.g].kind !== 'shape'; });
-  var paper = hadLetter && S.sessionsAll % 3 === 0 && !S.practice;
+  /* ...but not twice a day: after her name it may have been said (b15) */
+  var paper = hadLetter && S.sessionsAll % 3 === 0 && !S.practice && S.paperDay !== today();
+  if(paper){ S.paperDay = today(); save(); }
   var sub = paper ? tx().paper : night ? tx().night : tx().endSub;
   $('guest').textContent = paper ? '🖍️' : pick(GUESTS);
   $('etitle').textContent = nm(tx().end);

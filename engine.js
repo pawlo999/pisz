@@ -904,6 +904,9 @@ function dayKey(ts){
 }
 P.dayKey = dayKey;
 
+P.PRIMED = 10 * 60000;            /* an M this soon after seeing the glyph is a copy */
+P.REST = 14 * 86400000;           /* how long three misses alone rest a letter        */
+
 P.rebuild = function(log){
   var M = {};
   /* only glyphs this build knows: a row from a newer build, or a bad one,
@@ -914,7 +917,7 @@ P.rebuild = function(log){
      .slice().sort(function(a, b){ return a.t - b.t; })
      .forEach(function(r){
        var m = M[r.g] || (M[r.g] = { lv:0, n:0, ok:0, last:0, memDays:{}, fails:0,
-                                     errs:{}, recent:[], firstAt:r.t });
+                                     errs:{}, recent:[], firstAt:r.t, free:[], lastSeen:0 });
        m.n++; m.last = r.t;
        if(r.ok){ m.ok++; m.lastOk = r.t; }
        (r.e ? String(r.e).split(',') : []).forEach(function(e){ if(e) m.errs[e] = (m.errs[e] || 0) + 1; });
@@ -924,9 +927,24 @@ P.rebuild = function(log){
        /* written with help (over the dots after a miss, or after 👀 in a
           memory step) is not copying it alone: it counts as the dots    */
        if(r.ok && r.h && (r.st === 'C' || r.st === 'M')) gain = Math.min(gain, 2);
+       /* from memory straight after seeing it is not from memory (b15): an
+          M within 10 minutes of a road, dots or copy of the same glyph
+          counts as a copy, and is not a memory day                       */
+       /* (a success only: a primed miss steps back from memory as any
+          miss from memory does, one level)                               */
+       var primed = r.ok && r.st === 'M' && m.lastSeen && r.t - m.lastSeen < P.PRIMED;
+       if(primed) gain = Math.min(gain, 3);
+       if(r.st === 'R' || r.st === 'T' || r.st === 'C') m.lastSeen = r.t;
+       /* her last three tries alone (copy or memory, no help, not once
+          more): three misses put the letter to rest (b15). A mirrored try
+          is not a miss (Fischer 2021), so it is left out here too        */
+       if((r.st === 'C' || r.st === 'M') && !r.h && !r.ag && (r.ok || !/mirror/.test(r.e || ''))){
+         m.free.push({ t:r.t, ok:r.ok ? 1 : 0 });
+         if(m.free.length > 3) m.free.shift();
+       }
        if(r.ok){
          m.fails = 0;
-         if(r.st === 'M'){ m.memDays[dayKey(r.t)] = 1; }
+         if(r.st === 'M' && !primed){ m.memDays[dayKey(r.t)] = 1; }
          m.lv = Math.max(m.lv, gain);
          if(Object.keys(m.memDays).length >= 2) m.lv = 5;
        } else if((r.st === 'C' || r.st === 'M') && !/mirror/.test(r.e || '')){
@@ -945,9 +963,6 @@ P.rebuild = function(log){
 P.plan = function(m, opt){
   opt = opt || {};
   var lv = m ? m.lv : 0;
-  var formErr = m && m.recent.slice(-3).filter(function(r){
-    return /start|dir/.test(r.e);
-  }).length >= 2;
   /* watch -> trace -> copy in one go for something new; from memory only
      on a later visit, because recall after a delay is the step that
      teaches (Berninger 1997) and the one where reversals show up        */
@@ -966,9 +981,9 @@ P.plan = function(m, opt){
      Later sittings that day copy it instead                             */
   var now = opt.now || Date.now();
   if(p[0] === 'M' && m && m.lastOk && (dayKey(m.lastOk) === dayKey(now) || now - m.lastOk < 6 * 3600000)) p = ['C'];
-  /* starting points and directions keep going wrong: trace once first,
-     which is the only step that will not let her do it backwards        */
-  if(formErr && p[0] !== 'R' && p[0] !== 'T') p = ['T'].concat(p);
+  /* No forced trace when starting points keep going wrong (b15): of 13
+     writes straight after one, 8 still started wrong. The copy model
+     shows every line's start instead (index.html, paintModel)           */
   return p;
 };
 
@@ -976,6 +991,41 @@ P.plan = function(m, opt){
 function ready(id, M){
   return G[id].needs.every(function(n){ return M[n] && M[n].lv >= 2; });
 }
+
+/* A letter rests (b15) when her last three tries alone all missed and the
+   latest is under two weeks old: it stays in her book, ✏️ still writes
+   it, but no sitting brings it. Returns when the rest ends, else 0.
+   Shapes never rest.                                                     */
+P.resting = function(M, id, now){
+  var m = M[id];
+  if(!m || !G[id] || G[id].kind === 'shape' || !m.free || m.free.length < 3) return 0;
+  if(m.free.some(function(f){ return f.ok; })) return 0;
+  var until = m.free[m.free.length - 1].t + P.REST;
+  return (now || Date.now()) < until ? until : 0;
+};
+
+/* An accented letter waits (b15) until its base is written from memory
+   (Ż after Z at level 4; Æ after both A and E): in sittings only, ✏️ in
+   her book stays free. The letters it is built from are its `needs`.    */
+P.waits = function(M, id){
+  var g = G[id];
+  if(!g || g.kind !== 'letter') return false;
+  return g.needs.some(function(n){ return G[n] && G[n].kind === 'letter' && !(M[n] && M[n].lv >= 4); });
+};
+
+/* Her name without the model (b15): every letter of it written right
+   alone (st N, no help) on two different days.                          */
+P.nameAlone = function(log, name){
+  var letters = String(name || '').toUpperCase().split('').filter(function(c){ return G[c]; });
+  if(letters.length < 2) return false;
+  var days = {};
+  (log || []).forEach(function(r){
+    if(r && r.st === 'N' && r.ok && !r.h && r.g && typeof r.t === 'number'){
+      (days[r.g] = days[r.g] || {})[dayKey(r.t)] = 1;
+    }
+  });
+  return letters.every(function(c){ return Object.keys(days[c] || {}).length >= 2; });
+};
 
 /* Leitner spacing for things she owns: 1, 2, 4, 8 days after the last
    success, by how many separate days she has written it from memory.    */
@@ -986,23 +1036,38 @@ function due(m, now){
 }
 
 /* Build one session: a short, finite list of items.
-   opt: { lang, name, size, digits, now, learnAtOnce }                    */
+   opt: { lang, name, size, digits, now, learnAtOnce }
+
+   b15, from her record (7 Oct – 8 Nov): every letter she had touched was
+   "in progress", so the weakest came every sitting and nothing new did.
+   Now: three letters in progress at most, her name's letters first, then
+   the teaching order; the others wait in her book. At most two of those
+   (or a new one) — the stretch — in a sitting, never last; the rest is
+   what she can already do.                                              */
 P.session = function(M, opt){
   opt = opt || {};
   var now = opt.now || Date.now(), size = opt.size || 6, lang = opt.lang || 'pl';
-  var learnAtOnce = opt.learnAtOnce || 3;
+  var learnAtOnce = opt.learnAtOnce || 3, stretchMax = 2;
   var items = [];
   var letters = P.LETTERS[lang].concat(opt.digits ? P.DIGITS : []);
   var name = String(opt.name || '').toUpperCase().split('').filter(function(c){ return G[c]; });
 
   function lv(id){ return M[id] ? M[id].lv : 0; }
-  function add(id, why){
+  function rests(id){ return !!P.resting(M, id, now); }
+  function add(id, why, stretch){
     /* the letter I and the line │ look the same to her: never both in one
        sitting, or two bubbles on the path are identical                 */
     if(items.some(function(it){ return it.g === id || twins(it.g, id); })) return false;
-    items.push({ g:id, why:why, steps:P.plan(M[id], { shape:G[id].kind === 'shape', now:now }) });
+    var it = { g:id, why:why, steps:P.plan(M[id], { shape:G[id].kind === 'shape', now:now }) };
+    if(stretch) it.stretch = true;
+    items.push(it);
     return true;
   }
+
+  /* teaching order: her name's letters as they come in her name, then the
+     curriculum                                                          */
+  var order = [];
+  name.concat(letters).forEach(function(id){ if(letters.indexOf(id) >= 0 && order.indexOf(id) < 0) order.push(id); });
 
   /* 1. warm up with a shape: the next one to learn, else the stalest one */
   var shapeNew = P.SHAPES.filter(function(s){ return lv(s) < 2 && ready(s, M); });
@@ -1012,43 +1077,61 @@ P.session = function(M, opt){
   else if(shapeOld.length) add(shapeOld[0], 'warm-up');
 
   /* while shapes are still the lesson, a second new shape is the lesson */
-  var learningLetters = letters.filter(function(id){ var l = lv(id); return M[id] && l >= 1 && l <= 3; });
   if(shapeNew.length > 1 && P.SHAPES.filter(function(s){ return lv(s) >= 2; }).length < 4){
     add(shapeNew[1], 'shape');
   }
 
-  /* 2. letters she is learning, least known first */
-  learningLetters.sort(function(a, b){ return lv(a) - lv(b) || M[a].last - M[b].last; })
-                 .forEach(function(id){ if(items.length < size) add(id, 'learning'); });
-
-  /* 3. at most ONE new letter, and only while few are in progress */
-  if(items.length < size && learningLetters.length < learnAtOnce){
-    var cands = letters.filter(function(id){ return !M[id] && ready(id, M); });
-    var mine = cands.filter(function(id){ return name.indexOf(id) >= 0; });
-    var pick = mine[0] || cands[0];
-    if(pick) add(pick, mine[0] ? 'name' : 'new');
+  /* 2. the stretch: of the letters in progress that neither rest nor wait,
+     the first three in teaching order; the others are "tried" — in her
+     book, not in sittings, until one of these three moves on            */
+  var progress = order.filter(function(id){ var l = lv(id); return M[id] && l >= 1 && l <= 3 && !rests(id) && !P.waits(M, id); });
+  var scheduled = progress.slice(0, learnAtOnce);
+  /* a new letter, at most one, only while fewer than three are scheduled */
+  var fresh = [];
+  if(scheduled.length < learnAtOnce){
+    /* level 0, rows or not: a letter tried in her book with nothing right
+       yet is new too (before b15 it was neither new nor learning)       */
+    fresh = order.filter(function(id){ return lv(id) === 0 && ready(id, M) && !P.waits(M, id) && !rests(id); });
   }
-
-  /* 4. reviews that are due, stalest first */
-  letters.filter(function(id){ return M[id] && lv(id) >= 4 && due(M[id], now); })
-         .sort(function(a, b){ return M[a].last - M[b].last; })
-         .forEach(function(id){ if(items.length < size) add(id, 'review'); });
-
-  /* 5. her name, once every letter in it can be copied */
-  if(name.length >= 2 && name.length <= 8 && name.every(function(c){ return lv(c) >= 3; }) &&
-     items.length < size + 1){
-    items.push({ g:name.join(''), why:'name', steps:['N'], name:true });
+  /* the stretch-slot for a new one is kept only if one can join: I is not
+     offered beside │ (twins), so the next new letter is tried instead   */
+  var newOne = null;
+  for(var f = 0; f < fresh.length && !newOne; f++){
+    if(!items.some(function(it){ return it.g === fresh[f] || twins(it.g, fresh[f]); })) newOne = fresh[f];
   }
+  var room = Math.min(stretchMax, size - items.length) - (newOne ? 1 : 0);
+  scheduled.slice().sort(function(a, b){ return M[a].last - M[b].last; })
+           .forEach(function(id){ if(room > 0 && add(id, 'learning', true)) room--; });
+  if(newOne && items.length < size) add(newOne, name.indexOf(newOne) >= 0 ? 'name' : 'new', true);
 
-  /* 6. still short: more shapes and owned letters, stalest first */
-  var filler = P.SHAPES.concat(letters).filter(function(id){ return M[id] && lv(id) >= 2; })
-                       .sort(function(a, b){ return M[a].last - M[b].last; });
-  for(var i = 0; i < filler.length && items.length < size; i++) add(filler[i], 'practice');
+  /* 3. what she can already do: reviews that are due, then the stalest */
+  var known = letters.filter(function(id){ return M[id] && lv(id) >= 4 && !rests(id); });
+  known.filter(function(id){ return due(M[id], now); })
+       .sort(function(a, b){ return M[a].last - M[b].last; })
+       .forEach(function(id){ if(items.length < size) add(id, 'review'); });
+  known.slice().sort(function(a, b){ return M[a].last - M[b].last; })
+       .forEach(function(id){ if(items.length < size) add(id, 'practice'); });
+  /* still short: shapes she has, stalest first */
+  shapeOld.forEach(function(id){ if(items.length < size) add(id, 'practice'); });
 
-  /* 7. first ever session, nothing known: the opening shapes */
+  /* 4. first ever session, nothing known: the opening shapes */
   for(var j = 0; j < P.SHAPES.length && items.length < Math.min(size, 3); j++){
     if(ready(P.SHAPES[j], M)) add(P.SHAPES[j], 'shape');
   }
+
+  /* 5. never end on the stretch: something she can do comes after it —
+     the last one that is not a stretch, else the warm-up                */
+  /* (her name, when it comes, is that: then nothing moves, and the
+     warm-up stays first unless nothing else can follow the stretch)    */
+  var withName = name.length >= 2 && name.length <= 8 && name.every(function(c){ return lv(c) >= 3; });
+  if(!withName && items.length > 1 && items[items.length - 1].stretch){
+    var k = items.length - 2;
+    while(k > 0 && items[k].stretch) k--;
+    if(!items[k].stretch) items.push(items.splice(k, 1)[0]);
+  }
+
+  /* 6. her name, last, once every letter in it can be copied */
+  if(withName) items.push({ g:name.join(''), why:'name', steps:['N'], name:true });
   return items;
 };
 

@@ -370,7 +370,121 @@ section('what an item asks for');
   ok(plan(3).join() === 'M' && plan(5).join() === 'M', 'once copied: from memory only');
   ok(P.plan(null, { shape: true }).join() === 'R,T' && P.plan({ lv: 2, recent: [] }, { shape: true }).join() === 'C', 'shapes: road and dots, then copy; never memory');
   const formErr = { lv: 4, recent: [{ st: 'M', ok: 1, e: 'start' }, { st: 'M', ok: 1, e: 'dir' }] };
-  ok(P.plan(formErr).join() === 'T,M', 'starting points keep going wrong: one trace over the dots first');
+  ok(P.plan(formErr).join() === 'M', 'starting points keep going wrong: no trace is added (b15: the copy model shows the starts)', P.plan(formErr).join());
+}
+
+section('b15: from memory straight after seeing it is a copy');
+{
+  const min = 60000;
+  const seen = [{ t: T0, g: 'L', st: 'R', ok: 1 }, { t: T0 + 1, g: 'L', st: 'T', ok: 1 }, { t: T0 + 2, g: 'L', st: 'C', ok: 1 }];
+  const at = (dt, st = 'M', extra = {}) => ({ t: T0 + dt, g: 'L', st, ok: 1, ...extra });
+  let M = P.rebuild(seen.concat([at(DAY), at(2 * DAY, 'T'), at(2 * DAY + 5 * min)]));
+  ok(M.L.lv === 4 && Object.keys(M.L.memDays).length === 1, 'an M five minutes after a trace is not a second memory day', JSON.stringify(M.L.memDays));
+  M = P.rebuild(seen.concat([at(DAY), at(2 * DAY - 9 * min, 'C'), at(2 * DAY)]));
+  ok(M.L.lv === 4, 'an M nine minutes after a copy on another day: still not owned', M.L.lv);
+  M = P.rebuild(seen.concat([at(DAY), at(2 * DAY - 11 * min, 'C'), at(2 * DAY)]));
+  ok(M.L.lv === 5, 'eleven minutes after the copy it counts: owned', M.L.lv);
+  M = P.rebuild([{ t: T0, g: 'K', st: 'C', ok: 1 }, { t: T0 + 4 * min, g: 'K', st: 'M', ok: 1 }]);
+  ok(M.K.lv === 3 && !Object.keys(M.K.memDays).length, 'primed: counts as a copy (level 3 at most)', JSON.stringify([M.K.lv, M.K.memDays]));
+  /* review: two misses from memory just after a copy step back one level, not two */
+  const four = seen.concat([at(DAY), at(3 * DAY, 'C'), { t: T0 + 3 * DAY + 2 * min, g: 'L', st: 'M', ok: 0, e: 'shape' }, { t: T0 + 3 * DAY + 3 * min, g: 'L', st: 'M', ok: 0, e: 'shape' }]);
+  ok(P.rebuild(four).L.lv === 3, 'two primed misses from memory: back to copying (3), not to the dots', P.rebuild(four).L.lv);
+}
+
+section('b15: a letter rests after three misses alone');
+{
+  const miss = (g, dt, st = 'M', extra = {}) => ({ t: T0 + dt, g, st, ok: 0, e: 'shape', ...extra });
+  const base = [...['|', '-', '/', '\\'].map((g, i) => ({ t: T0 - DAY + i, g, st: 'C', ok: 1 })),
+                { t: T0, g: 'Z', st: 'R', ok: 1 }, { t: T0 + 1, g: 'Z', st: 'T', ok: 1 }, { t: T0 + 2, g: 'Z', st: 'C', ok: 1 }];
+  const three = base.concat([miss('Z', DAY), miss('Z', 2 * DAY, 'C'), miss('Z', 3 * DAY)]);
+  let M = P.rebuild(three);
+  const until = P.resting(M, 'Z', T0 + 4 * DAY);
+  ok(until === T0 + 3 * DAY + 14 * DAY, 'three misses alone: rests two weeks from the latest', until);
+  ok(!P.session(M, { lang: 'pl', now: T0 + 4 * DAY }).some(i => i.g === 'Z'), 'a resting letter is not put into a sitting');
+  ok(!P.resting(M, 'Z', T0 + 17 * DAY + 1) && P.session(M, { lang: 'pl', now: T0 + 18 * DAY }).some(i => i.g === 'Z'), 'after two weeks it comes back');
+  const helped = base.concat([miss('Z', DAY), { t: T0 + DAY + 1, g: 'Z', st: 'C', ok: 0, h: 1 }, miss('Z', 2 * DAY, 'C', { ag: 1 }), miss('Z', 3 * DAY)]);
+  ok(!P.resting(P.rebuild(helped), 'Z', T0 + 4 * DAY), 'a helped try or a once-more does not count toward it');
+  const good = base.concat([miss('Z', DAY), { t: T0 + 2 * DAY, g: 'Z', st: 'M', ok: 1 }, miss('Z', 3 * DAY), miss('Z', 4 * DAY)]);
+  ok(!P.resting(P.rebuild(good), 'Z', T0 + 5 * DAY), 'one success among the last three: no rest');
+  const mir = base.concat([miss('Z', DAY), miss('Z', 2 * DAY, 'M', { e: 'mirror' }), miss('Z', 3 * DAY)]);
+  ok(!P.resting(P.rebuild(mir), 'Z', T0 + 4 * DAY), 'a mirrored try is not a miss here either');
+  const shp = [miss('o', 0, 'C'), miss('o', DAY, 'C'), miss('o', 2 * DAY, 'C')];
+  ok(!P.resting(P.rebuild(shp), 'o', T0 + 3 * DAY), 'shapes never rest');
+}
+
+section('b15: what a sitting is built from');
+/* a stretch item: a letter she is still learning (level 0-3), not her name */
+const isStretch = (M, i) => !i.name && P.G[i.g] && P.G[i.g].kind !== 'shape' && (!M[i.g] || M[i.g].lv <= 3);
+{
+  const now = T0 + 30 * DAY;
+  const rows = (g, lv, t) => {
+    const out = [];
+    if (lv >= 1) out.push({ t: t, g, st: 'R', ok: 1 });
+    if (lv >= 2) out.push({ t: t + 1, g, st: 'T', ok: 1 });
+    if (lv >= 3) out.push({ t: t + 2, g, st: 'C', ok: 1 });
+    if (lv >= 4) out.push({ t: t + DAY, g, st: 'M', ok: 1 });
+    if (lv >= 5) out.push({ t: t + 2 * DAY, g, st: 'M', ok: 1 });
+    return out;
+  };
+  const shapes = P.SHAPES.flatMap((g, i) => rows(g, 2, T0 + i * 10));
+  const build = spec => P.rebuild(shapes.concat(...spec.map(([g, lv], i) => rows(g, lv, T0 + DAY + i * 100))));
+  /* accents wait for their base at level 4 */
+  let M = build([['Z', 3], ['Ż', 2], ['C', 3], ['A', 4], ['E', 3]]);
+  let gs = P.session(M, { lang: 'pl', now, size: 6 }).map(i => i.g);
+  ok(!gs.includes('Ż'), 'Ż waits while Z is not yet from memory', gs.join(' '));
+  M = build([['Z', 4], ['Ż', 2]]);
+  gs = P.session(M, { lang: 'pl', now, size: 6 }).map(i => i.g);
+  ok(gs.includes('Ż'), 'Ż comes once Z is at level 4', gs.join(' '));
+  M = build([['C', 3]]);
+  ok(P.waits(M, 'Ć') && !P.waits(build([['C', 4]]), 'Ć'), 'a new Ć is not offered while C is at level 3');
+  ok(P.waits(build([['A', 4], ['E', 3]]), 'Æ') && !P.waits(build([['A', 4], ['E', 4]]), 'Æ'), 'Æ: both A and E at level 4');
+  /* three in progress, her name's letters first */
+  M = build([['L', 2], ['T', 3], ['H', 1], ['O', 3], ['D', 2], ['N', 2]]);
+  const ses = P.session(M, { lang: 'pl', name: 'NADIA', now, size: 6 });
+  const st = ses.filter(i => isStretch(M, i)).map(i => i.g);
+  ok(st.length <= 2 && st.every(g => ['N', 'D', 'L'].includes(g)), 'of six in progress, only her name\'s (N, D) then L are scheduled', ses.map(i => i.g + (i.stretch ? '*' : '')).join(' '));
+  ok(!ses.some(i => !M[i.g] && P.G[i.g].kind === 'letter'), 'no new letter while three are in progress');
+  M = build([['L', 3], ['T', 3], ['H', 3], ['O', 3], ['D', 3]].concat([['I', 4], ['F', 4], ['E', 4]]));
+  const s2 = P.session(M, { lang: 'pl', now, size: 6 });
+  ok(s2.filter(i => isStretch(M, i)).length === 2 && !isStretch(M, s2[s2.length - 1]) && s2.every(i => !!i.stretch === isStretch(M, i)), 'at most two stretch items, and never last', s2.map(i => i.g + (i.stretch ? '*' : '')).join(' '));
+  const sch = new Set(), played = [];
+  for (let d = 0; d < 6; d++) {
+    const Md = P.rebuild(shapes.concat(...[['L', 3], ['T', 3], ['H', 3], ['O', 3], ['D', 3], ['I', 4], ['F', 4], ['E', 4]].map(([g, lv], i) => rows(g, lv, T0 + DAY + i * 100)), played));
+    /* she writes what she is given: a copy that misses, so nothing moves on */
+    P.session(Md, { lang: 'pl', now: now + d * DAY, size: 6 }).filter(i => isStretch(Md, i))
+      .forEach(i => { sch.add(i.g); played.push({ t: now + d * DAY, g: i.g, st: 'T', ok: 1 }); });
+  }
+  ok([...sch].sort().join('') === 'HLT', 'the three scheduled take turns; the "tried" ones wait', [...sch].join(''));
+  /* resting and waiting letters do not count toward the three: a new one comes */
+  M = build([['L', 3], ['Ż', 2], ['Z', 3]]);
+  const s3 = P.session(M, { lang: 'pl', now, size: 6 });
+  ok(s3.some(i => i.why === 'new' || i.why === 'name'), 'with one scheduled (Ż waits), a new letter is offered', s3.map(i => i.g + ':' + i.why).join(' '));
+  ok(s3.filter(i => isStretch(M, i)).length <= 2, 'still at most two stretch items with the new one');
+  /* review: the warm-up stays first when her name follows anyway */
+  M = build([['N', 3], ['A', 3], ['D', 3], ['I', 3]]);
+  const s5 = P.session(M, { lang: 'pl', name: 'NADIA', now, size: 3 });
+  ok(P.G[s5[0].g].kind === 'shape' && s5[s5.length - 1].name, 'a small sitting with her name: warm-up first, name last', s5.map(i => i.g).join(' '));
+  /* review: a small sitting keeps the place for the new letter */
+  M = build([['L', 3]]);
+  const s6 = P.session(M, { lang: 'pl', now, size: 2 });
+  ok(s6.some(i => i.why === 'new'), 'size 2, one in progress: the new letter still comes', s6.map(i => i.g + ':' + i.why).join(' '));
+  /* her name stays last */
+  M = build([['N', 3], ['A', 3], ['D', 3], ['I', 3], ['L', 4]]);
+  const s4 = P.session(M, { lang: 'pl', name: 'NADIA', now, size: 5 });
+  ok(s4[s4.length - 1].name && !isStretch(M, s4[s4.length - 2]), 'her name last, and no stretch just before it', s4.map(i => i.g + (i.stretch ? '*' : '')).join(' '));
+}
+
+section('b15: her name without the model');
+{
+  const n = (g, dt, extra = {}) => ({ t: T0 + dt, g, st: 'N', ok: 1, ...extra });
+  const day1 = ['A', 'D', 'A'].map((g, i) => n(g, i));
+  ok(!P.nameAlone(day1, 'ADA'), 'one day of her name: still with the model');
+  const day2 = day1.concat(['A', 'D', 'A'].map((g, i) => n(g, DAY + i)));
+  ok(P.nameAlone(day2, 'ADA'), 'every letter right on two days: without the model');
+  const helped = day1.concat([n('A', DAY), n('D', DAY + 1, { h: 1 })]);
+  ok(!P.nameAlone(helped, 'ADA'), 'a letter written with help does not count');
+  const nm = day2.concat([{ t: T0 + 2 * DAY, g: 'D', st: 'N', ok: 1, nm: 1 }]);
+  ok(P.rebuild(nm).D.lv === P.rebuild(day2).D.lv && P.rebuild(nm).D.n === 3, 'a row written without the model is an N row like any other');
 }
 
 /* ------------------------------------------------------------------ */
@@ -396,8 +510,21 @@ for (const lang of ['pl', 'nb']) {
         if (P.G[i.g].needs.some(n => !M[n] || M[n].lv < 2)) violations.push(i.g + ' before its strokes');
         if (firstLetterDay === null) firstLetterDay = day;
       });
-      const learning = Object.keys(M).filter(k => P.G[k] && P.G[k].kind !== 'shape' && M[k].lv >= 1 && M[k].lv <= 3).length;
+      const learning = Object.keys(M).filter(k => P.G[k] && P.G[k].kind !== 'shape' && M[k].lv >= 1 && M[k].lv <= 3 &&
+                                                  !P.resting(M, k, t) && !P.waits(M, k)).length;
       maxLearning = Math.max(maxLearning, learning);
+      /* the spec's measure: a new letter only while fewer than three are in progress */
+      if (items.some(i => P.G[i.g] && P.G[i.g].kind !== 'shape' && !M[i.g]) && learning >= 3) violations.push('new letter with ' + learning + ' in progress ' + gs);
+      const last = items.filter(i => !i.name).pop();
+      if (last && isStretch(M, last) && items.length > 1) violations.push('ends on a stretch ' + gs);
+      if (items.filter(i => isStretch(M, i)).length > 2) violations.push('three stretch items ' + gs);
+      items.forEach(i => {
+        if (!P.G[i.g]) return;
+        if (P.resting(M, i.g, t)) violations.push(i.g + ' while resting');
+        if (P.G[i.g].base && !(M[P.G[i.g].base] && M[P.G[i.g].base].lv >= 4)) violations.push(i.g + ' before ' + P.G[i.g].base + ' is level 4');
+        const notLetter = ['Æ'].includes(i.g) && P.G[i.g].needs.some(n => !(M[n] && M[n].lv >= 4));
+        if (notLetter) violations.push(i.g + ' before its letters are level 4');
+      });
       if (items.some(i => i.name) && nameAt === null) nameAt = day;
       // play: tracing always gets done; copying and memory succeed more with practice
       items.forEach(it => {
@@ -413,9 +540,13 @@ for (const lang of ['pl', 'nb']) {
   }
   const M = P.rebuild(log);
   const owned = Object.keys(M).filter(k => P.G[k].kind === 'letter' && M[k].lv >= 4).length;
-  ok(!violations.length, `${lang}: no duplicates, no oversized sitting, nothing before its strokes`, violations.slice(0, 5).join('; '));
+  ok(!violations.length, `${lang}: no duplicates, no oversized sitting, nothing before its strokes; never ends on a stretch, never more than two, nothing resting, no accent before its base is level 4, no new letter while three are in progress`, violations.slice(0, 5).join('; '));
   ok(Math.max(...newPerSitting) <= 1, `${lang}: at most one new letter per sitting`);
-  ok(maxLearning <= 3, `${lang}: never more than 3 letters in progress at once (max ${maxLearning})`);
+  /* b15: more than three can be at level 1-3 (one back from a rest, one
+     stepped back from memory) — the others are "tried", not scheduled; what
+     holds is that no new letter comes while three are in progress (checked
+     with the violations above)                                           */
+  ok(maxLearning <= 5, `${lang}: letters at level 1-3 that neither rest nor wait stay few (max ${maxLearning})`);
   ok(firstLetterDay !== null && firstLetterDay <= 2, `${lang}: the first letter arrives on day ${firstLetterDay} (after the opening strokes)`);
   ok(owned >= 12, `${lang}: ${owned} letters written from memory after 40 days of two short sittings`);
   ok(nameAt !== null, `${lang}: her name comes up as soon as she can copy its letters (day ${nameAt})`);

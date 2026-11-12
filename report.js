@@ -153,7 +153,15 @@ function render(host, log, opt){
     var td0 = el('td'); td0.appendChild(g); tr.appendChild(td0);
     var lvTd = el('td'), bar = el('span', 'lvbar');
     for(var k = 1; k <= 5; k++){ var i = el('i'); if(m && m.lv >= k) i.style.background = LEVELCOL[m.lv]; bar.appendChild(i); }
-    lvTd.appendChild(bar); lvTd.appendChild(el('div', 'note', m ? LEVEL[m.lv] : 'not yet')); tr.appendChild(lvTd);
+    lvTd.appendChild(bar); lvTd.appendChild(el('div', 'note', m ? LEVEL[m.lv] : 'not yet'));
+    /* b15: why a started letter is not in her sittings — it rests after
+       three misses alone, or waits for the letter it is built on         */
+    var restUntil = m ? P.resting(M, id, opt.now || Date.now()) : 0;
+    if(restUntil) lvTd.appendChild(el('div', 'note rest', 'resting until ' + fmtDay(P.dayKey(restUntil))));
+    else if(m && m.lv >= 1 && m.lv <= 3 && P.waits(M, id)){
+      lvTd.appendChild(el('div', 'note rest', 'waits for ' + P.G[id].needs.filter(function(n){ return P.G[n] && P.G[n].kind === 'letter'; }).join(' and ') + ' from memory'));
+    }
+    tr.appendChild(lvTd);
     tr.appendChild(el('td', 'r', m ? String(m.n) : ''));
     tr.appendChild(el('td', 'r', m && m.n ? Math.round(100 * m.ok / m.n) + '%' : ''));
     tr.appendChild(el('td', null, m ? fmtDay(P.dayKey(m.last)) : ''));

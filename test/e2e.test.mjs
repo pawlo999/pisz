@@ -21,7 +21,8 @@ function rowsFor(g, lv, t0) {
   if (lv >= 1) out.push({ t: t++, l: 'pl', g, st: 'R', ok: 1 });
   if (lv >= 2) out.push({ t: t++, l: 'pl', g, st: 'T', ok: 1 });
   if (lv >= 3) out.push({ t: t++, l: 'pl', g, st: 'C', ok: 1 });
-  if (lv >= 4) out.push({ t: t++, l: 'pl', g, st: 'M', ok: 1 });
+  /* from memory 15 minutes after the copy: sooner is a copy since b15 */
+  if (lv >= 4) out.push({ t: t + 15 * 60000, l: 'pl', g, st: 'M', ok: 1 });
   if (lv >= 5) out.push({ t: t + DAY, l: 'pl', g, st: 'M', ok: 1 });
   return out;
 }
@@ -56,9 +57,128 @@ function speechOk(said) {
   return { good: !bare.length && !unsafe.length && !upper.length, why: JSON.stringify({ bare, unsafe, upper }) };
 }
 
+/* b15 (his calls of 12 Nov): where a letter starts, on the model; her name
+   without the model; the crayon prompt after her name, once a day.
+   PISZ_ONLY=b15 runs just these.                                        */
+const greenOnModel = page => page.evaluate(() => {
+  const c = document.getElementById('modelc'), x = c.getContext('2d');
+  if (!c.width || !c.height) return 0;
+  const d = x.getImageData(0, 0, c.width, c.height).data; let n = 0;
+  for (let i = 0; i < d.length; i += 4) if (d[i + 3] > 200 && d[i + 1] > 130 && d[i] < 70 && d[i + 2] < 110) n++;
+  return n;
+});
+const modelOn = page => page.evaluate(() => document.getElementById('model').classList.contains('on'));
+function nameDays(name, days) {
+  const out = [];
+  for (let d = days; d >= 1; d--) name.split('').forEach((g, i) => out.push({ t: Date.now() - d * DAY + i, l: 'pl', g, st: 'N', ok: 1 }));
+  return out;
+}
+async function b15(b) {
+  console.log('\nb15: the parent report says why a letter is not in her sittings');
+  {
+    const log = seedLog([...SHAPES2, ['/', 2], ['C', 3], ['Ć', 2], ['Z', 3]], 6);
+    [3, 2, 1].forEach(d => log.push({ t: Date.now() - d * DAY, l: 'pl', g: 'Z', st: 'M', ok: 0, e: 'shape' }));
+    const { page, errors } = await open(b, { seed: { name: 'ADA', lang: 'pl' }, log });
+    await page.dispatchEvent('#gear', 'mousedown'); await sleep(1350); await page.dispatchEvent('#gear', 'mouseup');
+    await page.click('#statsbtn'); await sleep(300);
+    const txt = await page.textContent('#rep');
+    ok(/resting until \d\d\.\d\d/.test(txt), 'three misses alone: "resting until <date>"', (txt.match(/resting[^,]{0,30}/) || [''])[0]);
+    ok(/waits for C from memory/.test(txt), 'Ć: "waits for C from memory"');
+    ok(!errors.length, 'no errors', errors.join(' | '));
+    await page.context().close();
+  }
+  console.log('\nb15: the copy model shows where every line starts');
+  {
+    const { page, errors } = await open(b, { seed: { name: 'ADA', lang: 'pl' }, log: seedLog([...SHAPES2, ['E', 2], ['C', 4], ['L', 4]]) });
+    await enter(page);
+    await sitting(page, [{ g: 'E', why: 't', steps: ['C'] }]);
+    await ready(page, 'C', 20000); await sleep(300);
+    const g1 = await greenOnModel(page);
+    ok(g1 > 200, 'copying E: green starts, arrows and numbers on the model', 'green px ' + g1);
+    await page.click('#model');
+    await until(page, () => !window.__pisz.DEMO_ON, null, 15000, 'replay end').catch(() => {});
+    await sleep(800);
+    const g2 = await greenOnModel(page);
+    ok(g2 > 200, 'after the replay on tap they are painted again', 'green px ' + g2);
+    await page.evaluate(() => document.getElementById('wback').click()); await sleep(300);
+    await sitting(page, [{ g: 'Ć', why: 't', steps: ['C'] }]);
+    await ready(page, 'C', 20000); await sleep(300);
+    const gc = await greenOnModel(page), ge = g1;
+    ok(gc > 50 && gc < ge, 'Ć: one start (the arc), none on the accent', `Ć ${gc}, E ${ge}`);
+    await page.evaluate(() => document.getElementById('wback').click()); await sleep(300);
+    await sitting(page, [{ g: 'L', why: 't', steps: ['M'] }]);
+    await ready(page, 'M', 20000);
+    ok(!(await modelOn(page)), 'from memory: still no model');
+    ok(!errors.length, 'no errors', errors.join(' | '));
+    await page.context().close();
+  }
+  console.log('\nb15: her name without the model, and to paper once a day');
+  {
+    const log = seedLog([...SHAPES2, ['/', 2], ['\\', 2], ['A', 3], ['D', 3]], 4).concat(nameDays('ADA', 2));
+    const { page, errors, said } = await open(b, { seed: { name: 'ADA', lang: 'pl' }, log });
+    await enter(page);
+    await runItemOf(page, 'ADA');
+    await ready(page, 'N');
+    ok(!(await modelOn(page)), 'every letter right on two days: the name is written without the model');
+    ok(await page.evaluate(() => document.querySelectorAll('#namestrip canvas.cur').length === 1), 'the strip still shows which letter is next');
+    const inked = await page.evaluate(() => [...document.querySelectorAll('#namestrip canvas')].map(c => {
+      const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0;
+      for (let i = 3; i < d.length; i += 4) if (d[i] > 40) n++;
+      return n;
+    }));
+    ok(inked.every(n => n === 0), 'but not the letters themselves: nothing to copy from (review)', JSON.stringify(inked));
+    // a miss on the first A: its model comes back for the retry
+    await draw(page, [[{ x: 0, y: 50 }, { x: 30, y: 52 }, { x: 60, y: 50 }, { x: 90, y: 52 }]]);
+    await until(page, () => document.getElementById('model').classList.contains('on'), null, 15000, 'model back').catch(() => {});
+    ok(await modelOn(page), 'a missed letter gets its model back for its retry');
+    const miss = await page.evaluate(() => window.__pisz.LOG.filter(r => r.st === 'N').pop());
+    ok(miss.ok === 0 && miss.nm === 1, 'the miss is logged as an N row with nm:1 (no model)', JSON.stringify({ ok: miss.ok, nm: miss.nm }));
+    await ready(page, 'N', 20000);
+    await draw(page, templateStrokes(P, 'A'));
+    await until(page, () => { const a = window.__pisz; return a.STEP && a.STEP.g && a.STEP.g.id === 'D' && a.STEP.ready; }, null, 20000, 'D ready');
+    const retry = await page.evaluate(() => window.__pisz.LOG.filter(r => r.st === 'N').pop());
+    ok(retry.ok === 1 && !retry.nm, 'the retry with the model is not marked nm', JSON.stringify({ ok: retry.ok, nm: retry.nm }));
+    ok(!(await modelOn(page)), 'the next letter is again without the model');
+    await draw(page, templateStrokes(P, 'D'));
+    await until(page, () => { const a = window.__pisz; return a.STEP && a.STEP.g && a.STEP.g.id === 'A' && a.STEP.ready; }, null, 20000, 'last A');
+    await draw(page, templateStrokes(P, 'A'));
+    await until(page, () => window.__pisz.current() !== 'write', null, 15000, 'name end');
+    const rows = await page.evaluate(() => window.__pisz.LOG.filter(r => r.st === 'N').slice(-2).map(r => r.g + r.ok + (r.nm || 0)).join(' '));
+    ok(rows === 'D11 A11', 'written alone: logged with nm:1', rows);
+    const paper = (await said()).filter(s => /swoje imię kredką/.test(s));
+    ok(paper.length === 1, 'after her name: "napisz swoje imię kredką na kartce…", sitting finished or not', JSON.stringify(paper));
+    // the same day again: not a second time, and the end screen does not repeat paper either
+    await page.evaluate(() => { const a = window.__pisz; a.S.sessionsAll = 2; });
+    await page.evaluate(() => { window.__pisz.startSession(); });
+    await sitting(page, [{ g: 'ADA', why: 'name', steps: ['N'], name: true }]);
+    for (const ch of ['A', 'D', 'A']) {
+      await until(page, ch => { const a = window.__pisz; return a.STEP && a.STEP.g && a.STEP.g.id === ch && a.STEP.ready; }, ch, 20000, ch);
+      await draw(page, templateStrokes(P, ch));
+      await sleep(400);
+    }
+    await until(page, () => window.__pisz.current() === 'end', null, 20000, 'end screen');
+    const again = (await said()).filter(s => /kredką/.test(s));
+    ok(again.length === 1, 'said once a day: not after her name again, nor at the end of the third sitting', JSON.stringify(again));
+    ok(!/kredką/.test(await page.textContent('#esub')), 'the end screen keeps its own words', await page.textContent('#esub'));
+    ok(!errors.length, 'no errors', errors.join(' | '));
+    await page.context().close();
+  }
+  {
+    const log = seedLog([...SHAPES2, ['/', 2], ['\\', 2], ['A', 3], ['D', 3]], 4).concat(nameDays('ADA', 1));
+    const { page, errors } = await open(b, { seed: { name: 'ADA', lang: 'pl' }, log });
+    await enter(page);
+    await runItemOf(page, 'ADA');
+    await ready(page, 'N');
+    ok(await modelOn(page), 'her name right on one day only: still beside the model');
+    ok(!errors.length, 'no errors', errors.join(' | '));
+    await page.context().close();
+  }
+}
+
 async function suite(engine) {
   console.log(`\n=== ${engine} ===`);
   const b = await launch(engine);
+  if (process.env.PISZ_ONLY === 'b15') { await b15(b); await b.close(); return; }
 
   /* ---------------------------------------------------------------- */
   console.log('\nfirst launch');
@@ -819,7 +939,8 @@ async function suite(engine) {
     await draw(page, [[{ x: 80, y: 95 }, { x: 70, y: 95 }, { x: 60, y: 95 }]]);   // a line begun in the wrong place…
     await page.evaluate(() => document.getElementById('undo').click());           // …taken back
     await draw(page, E.slice(1));
-    await until(page, () => window.__pisz.current() !== 'write', null, 8000, 'E done');
+    /* the end of E takes ~8.0 s on master and b15 alike (measured 12 Nov): 12 s */
+    await until(page, () => window.__pisz.current() !== 'write', null, 12000, 'E done');
     const row = await page.evaluate(() => window.__pisz.LOG.filter(r => r.g === 'E' && r.st === 'T')[0]);
     ok(row && row.ok === 1 && row.un === 2 && row.w === 0 && !row.e, 'the E is finished; two ↩️ logged, and the wrong start she took back does not count', JSON.stringify(row && { un: row.un, w: row.w, e: row.e }));
     ok(!errors.length, 'no errors', errors.join(' | '));
@@ -1343,6 +1464,8 @@ async function suite(engine) {
     ok(errors.length === 1, 'and nothing else went wrong', errors.join(' | '));
     await page.context().close();
   }
+
+  await b15(b);
 
   await b.close();
 }
